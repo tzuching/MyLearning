@@ -1,0 +1,925 @@
+###########################################################
+#### 設備
+###########################################################
+
+16 core + 42 G
+Ubuntu 1604
+
+###########################################################
+#### 新版資訊
+###########################################################
+
+#https://yq.aliyun.com/articles/65161?spm=5176.8091938.0.0.H3Hpkk
+
+#http://www.codingblog.cn/blog/4628.html#Config%20server%20的%20Primary%20节点负责负载均衡
+
+###########################################################
+#### 指令
+###########################################################
+
+sh -x /104/mongodb_node1/mongod.start.sh
+sh -x /104/mongodb_node2/mongod.start.sh
+sh -x /104/mongodb_arb1/mongod.start.sh
+
+su - mongodb -c /104/mongodb_cfg1/mongod.configsvr.sh
+su - mongodb -c /104/mongodb_cfg2/mongod.configsvr.sh
+su - mongodb -c /104/mongodb_cfg3/mongod.configsvr.sh
+
+###########################################################
+#### 安裝 Percona MongoDB
+###########################################################
+
+sudo apt-get install numactl
+
+#
+sudo dpkg -i percona-server-mongodb-34_3.4.2-1.2.xenial_amd64.deb
+sudo dpkg -i percona-server-mongodb-34-dbg_3.4.2-1.2.xenial_amd64.deb
+sudo dpkg -i percona-server-mongodb-34-mongos_3.4.2-1.2.xenial_amd64.deb
+sudo dpkg -i percona-server-mongodb-34-server_3.4.2-1.2.xenial_amd64.deb
+sudo dpkg -i percona-server-mongodb-34-shell_3.4.2-1.2.xenial_amd64.deb
+sudo dpkg -i percona-server-mongodb-34-tools_3.4.2-1.2.xenial_amd64.deb
+#
+root@percona_mongodb_lab:/source/percona-server-mongodb# sudo dpkg -i percona-server-mongodb-34-mongos_3.4.2-1.2.xenial_amd64.deb
+Selecting previously unselected package percona-server-mongodb-34-mongos.
+(Reading database ... 232561 files and directories currently installed.)
+Preparing to unpack percona-server-mongodb-34-mongos_3.4.2-1.2.xenial_amd64.deb ...
+Unpacking percona-server-mongodb-34-mongos (3.4.2-1.2.xenial) ...
+Setting up percona-server-mongodb-34-mongos (3.4.2-1.2.xenial) ...
+Processing triggers for man-db (2.7.5-1) ...
+#
+root@percona_mongodb_lab:/source/percona-server-mongodb# sudo dpkg -i percona-server-mongodb-34-server_3.4.2-1.2.xenial_amd64.deb
+Selecting previously unselected package percona-server-mongodb-34-server.
+(Reading database ... 232565 files and directories currently installed.)
+Preparing to unpack percona-server-mongodb-34-server_3.4.2-1.2.xenial_amd64.deb ...
+Adding system user `mongod' (UID 115) ...
+Adding new group `mongod' (GID 122) ...
+Adding new user `mongod' (UID 115) with group mongod ...
+Creating home directory `/var/lib/mongodb' ...
+Unpacking percona-server-mongodb-34-server (3.4.2-1.2.xenial) ...
+dpkg: dependency problems prevent configuration of percona-server-mongodb-34-server:
+ percona-server-mongodb-34-server depends on percona-server-mongodb-34-shell; however:
+  Package percona-server-mongodb-34-shell is not installed.
+
+dpkg: error processing package percona-server-mongodb-34-server (--install):
+ dependency problems - leaving unconfigured
+Processing triggers for systemd (229-4ubuntu13) ...
+Processing triggers for ureadahead (0.100.0-19) ...
+Processing triggers for man-db (2.7.5-1) ...
+Errors were encountered while processing:
+ percona-server-mongodb-34-server
+ #
+ root@percona_mongodb_lab:/source/percona-server-mongodb# sudo dpkg -i percona-server-mongodb-34-shell_3.4.2-1.2.xenial_amd64.deb
+Selecting previously unselected package percona-server-mongodb-34-shell.
+(Reading database ... 232577 files and directories currently installed.)
+Preparing to unpack percona-server-mongodb-34-shell_3.4.2-1.2.xenial_amd64.deb ...
+Unpacking percona-server-mongodb-34-shell (3.4.2-1.2.xenial) ...
+Setting up percona-server-mongodb-34-shell (3.4.2-1.2.xenial) ...
+Processing triggers for man-db (2.7.5-1) ...
+#
+root@percona_mongodb_lab:/source/percona-server-mongodb# sudo dpkg -i percona-server-mongodb-34-tools_3.4.2-1.2.xenial_amd64.deb
+Selecting previously unselected package percona-server-mongodb-34-tools.
+(Reading database ... 232581 files and directories currently installed.)
+Preparing to unpack percona-server-mongodb-34-tools_3.4.2-1.2.xenial_amd64.deb ...
+Unpacking percona-server-mongodb-34-tools (3.4.2-1.2.xenial) ...
+Setting up percona-server-mongodb-34-tools (3.4.2-1.2.xenial) ...
+Processing triggers for man-db (2.7.5-1) ...
+#
+root@percona_mongodb_lab:/source/percona-server-mongodb# sudo dpkg -i percona-server-mongodb-34_3.4.2-1.2.xenial_amd64.deb
+Selecting previously unselected package percona-server-mongodb-34.
+(Reading database ... 232602 files and directories currently installed.)
+Preparing to unpack percona-server-mongodb-34_3.4.2-1.2.xenial_amd64.deb ...
+Unpacking percona-server-mongodb-34 (3.4.2-1.2.xenial) ...
+Setting up percona-server-mongodb-34 (3.4.2-1.2.xenial) ...
+#
+root@percona_mongodb_lab:/source/percona-server-mongodb# sudo dpkg -i percona-server-mongodb-34-dbg_3.4.2-1.2.xenial_amd64.deb
+Selecting previously unselected package percona-server-mongodb-34-dbg.
+(Reading database ... 232607 files and directories currently installed.)
+Preparing to unpack percona-server-mongodb-34-dbg_3.4.2-1.2.xenial_amd64.deb ...
+Unpacking percona-server-mongodb-34-dbg (3.4.2-1.2.xenial) ...
+Setting up percona-server-mongodb-34-dbg (3.4.2-1.2.xenial) ...
+#
+root@percona_mongodb_lab:# dpkg -l percona-server*
+Desired=Unknown/Install/Remove/Purge/Hold
+| Status=Not/Inst/Conf-files/Unpacked/halF-conf/Half-inst/trig-aWait/Trig-pend
+|/ Err?=(none)/Reinst-required (Status,Err: uppercase=bad)
+||/ Name                                      Version                   Architecture              Description
++++-=========================================-=========================-=========================-=======================================================================================
+un  percona-server-mongodb                    <none>                    <none>                    (no description available)
+un  percona-server-mongodb-32                 <none>                    <none>                    (no description available)
+un  percona-server-mongodb-32-dbg             <none>                    <none>                    (no description available)
+un  percona-server-mongodb-32-mongos          <none>                    <none>                    (no description available)
+un  percona-server-mongodb-32-server          <none>                    <none>                    (no description available)
+un  percona-server-mongodb-32-shell           <none>                    <none>                    (no description available)
+un  percona-server-mongodb-32-tools           <none>                    <none>                    (no description available)
+ii  percona-server-mongodb-34                 3.4.2-1.2.xenial          amd64                     This metapackage will install the mongo shell, import/export tools, other client utilit
+ii  percona-server-mongodb-34-dbg             3.4.2-1.2.xenial          amd64                     Debugging package for Percona Server for MongoDB
+ii  percona-server-mongodb-34-mongos          3.4.2-1.2.xenial          amd64                     This package contains mongos - the Percona Server for MongoDB sharded cluster query rou
+ii  percona-server-mongodb-34-server          3.4.2-1.2.xenial          amd64                     This package contains the Percona Server for MongoDB server software, default configura
+ii  percona-server-mongodb-34-shell           3.4.2-1.2.xenial          amd64                     This package contains the Percona Server for MongoDB shell
+ii  percona-server-mongodb-34-tools           3.4.2-1.2.xenial          amd64                     Mongo tools for high-performance MongoDB fork from Percona
+un  percona-server-mongodb-dbg                <none>                    <none>                    (no description available)
+un  percona-server-mongodb-mongos             <none>                    <none>                    (no description available)
+un  percona-server-mongodb-server             <none>                    <none>                    (no description available)
+un  percona-server-mongodb-shell              <none>                    <none>                    (no description available)
+un  percona-server-mongodb-tools              <none>                    <none>                    (no description available)
+#
+
+###########################################################
+#### creating your first user
+###########################################################
+
+root@percona_mongodb_lab:/usr/bin# ./usr/bin/percona-server-mongodb-enable-auth.sh
+We have detected authentication is not enabled.
+Would you like help creating your first user?
+Please note that mongodb service will be restarted during this action
+Would you like to proceed?(Y/n)Y
+Percona Server for MongoDB shell version v3.4.2-1.2
+connecting to: mongodb://localhost/admin
+Percona Server for MongoDB server version: 3.4.2-1.2
+Successfully added user: { "user" : "dba", "roles" : [ "root" ] }
+bye
+User has been created successfully!
+User:dba
+Password:97kg57SQu4o3OG8M8kUkWxL2MSP6pclc
+
+###########################################################
+##### 設定OS參數
+###########################################################
+
+# 關閉 iptables
+iptables -F
+
+# 記憶體lock的最大限制
+vi /etc/security/limits.conf
+------------------------------
+# soft nofile 1048576
+# hard nofile 1048576
+mongodb soft stack     1024
+mongodb hard stack     1024
+
+######################################################################
+#### host define (/etc/hosts)
+######################################################################
+
+vi /etc/hosts
+------------------------------------------------------------------
+
+# mongo config server -- 172
+172.19.0.163    percona_mongodb_lab-cfg1.104.com.tw percona_mongodb_lab-cfg1
+172.19.0.163    percona_mongodb_lab-cfg2.104.com.tw percona_mongodb_lab-cfg2
+172.19.0.163    percona_mongodb_lab-cfg3.104.com.tw percona_mongodb_lab-cfg3
+
+# mongod arb -- 172
+172.19.0.163    percona_mongodb_lab-arb1.104.com.tw percona_mongodb_lab-arb1
+
+# mongod -- 172
+172.19.0.163    percona_mongodb_lab-01.104.com.tw percona_mongodb_lab-01
+172.19.0.163    percona_mongodb_lab-02.104.com.tw percona_mongodb_lab-02
+172.19.0.163    percona_mongodb_lab-03.104.com.tw percona_mongodb_lab-03
+172.19.0.163    percona_mongodb_lab-04.104.com.tw percona_mongodb_lab-04
+
+172.19.0.163    percona_mongodb_lab-01-01 percona_mongodb_lab-02-01 percona_mongodb_lab-03-01 percona_mongodb_lab-04-01
+172.19.0.163    percona_mongodb_lab-01-02 percona_mongodb_lab-02-02 percona_mongodb_lab-03-02 percona_mongodb_lab-04-02
+
+# mongo S -- 172
+172.19.0.163   percona_mongodb_lab-s1.104.com.tw percona_mongodb_lab-s1
+
+--------------------------------------------------------------------------------------------------------------
+percona_mongodb_lab-01					percona_mongodb_lab-02						percona_mongodb_lab-arb					
+01-01：20010											01-02：20011												arb：20012													
+02-01：20020											02-02：20021												arb：20022													
+03-01：20030											03-02：20031												arb：20032													
+04-01：20040											04-02：20041												arb：20042		
+
+percona_mongodb_lab-cfg					percona_mongodb_lab-s
+cfg1：27019												s1：27017
+cfg2：27020
+cfg3：27021
+--------------------------------------------------------------------------------------------------------------
+																																																					
+######################################################################
+#### directiory define (/data)
+######################################################################
+
+## 先關閉預設的服務
+service mongod stop
+
+## mongod server
+mkdir -p /data/mdb/01/data
+mkdir -p /data/mdb/02/data
+mkdir -p /data/mdb/03/data
+mkdir -p /data/mdb/04/data
+
+mkdir -p /data/mdb/log
+echo "perconamongodblab" > /data/mdb/mongoKey
+chown -R mongodb:dba /data/mdb
+chmod 700 /data/mdb/mongoKey
+
+### common
+mkdir -p /data/backup/mdb
+mkdir -p /data/backup/mdblog
+echo "perconamongodblab" > /data/mdb/01/mongoKey
+chmod 700 /data/mdb/01/mongoKey
+echo "perconamongodblab" > /data/mdb/02/mongoKey
+chmod 700 /data/mdb/02/mongoKey
+echo "perconamongodblab" > /data/mdb/03/mongoKey
+chmod 700 /data/mdb/03/mongoKey
+echo "perconamongodblab" > /data/mdb/04/mongoKey
+chmod 700 /data/mdb/04/mongoKey
+chown -R mongodb:dba /data/mdb/*
+
+######################################################################
+#### 編寫Mongo mongod 啟動程序檔 /104/mongodb
+######################################################################
+
+## 變更權限
+mkdir -p /104
+chown -R root:dba /104
+chmod -R o-rwx /104
+chmod -R ug+rwx /104
+
+mkdir -p /104/mongodb_node/
+cd /104/mongodb_node/
+chown -R mongodb:dba /104/mongodb_node/
+
+## 切換mongodb啟動程序檔
+su - mongodb -c "/104/mongodb_node/mongod.rs001.sh" 
+su - mongodb -c "/104/mongodb_node/mongod.rs002.sh" 
+su - mongodb -c "/104/mongodb_node/mongod.rs003.sh" 
+su - mongodb -c "/104/mongodb_node/mongod.rs004.sh"
+
+## 編寫mongod script (mongod.rs001.sh ~ mongod.rs004.sh)
+vi mongod.rs001.sh
+------------------------------------------------------------------------------------------------------------------------------------------
+#!/bin/bash
+
+numactl="numactl --interleave=all";
+sd="/usr/bin/mongod";
+mdb="01";
+
+p01="--shardsvr";
+p02="--replSet rs001";
+p03="--port 20010";
+p04="--dbpath /data/mdb/${mdb}/data";
+p05="--logpath /data/mdb/log/${mdb}.log";
+p06="--keyFile /data/mdb/mongoKey";
+p07="--profile 1 --logappend --fork --journal --directoryperdb --noMoveParanoia --oplogSize 1024 --nohttpinterface";
+
+${numactl} ${sd} ${p01} ${p02} ${p03} ${p04} ${p05} ${p06} ${p07} &
+------------------------------------------------------------------------------------------------------------------------------------------
+
+## mongodb啟動程序檔
+su - mongodb -c /104/mongodb_node/mongod.start.sh
+
+## check mongod
+netstat -nltp | grep mongo
+
+######################################################################
+#### 建置 "Arbiter 資料夾"
+######################################################################
+
+# 以下設備設定資料夾 arb1,arb2
+
+# arb1
+mkdir -p /data/mdb/arb1/01/data
+mkdir -p /data/mdb/arb1/02/data
+mkdir -p /data/mdb/arb1/03/data
+mkdir -p /data/mdb/arb1/04/data
+
+mkdir -p /data/mdb/arb1/log
+echo "perconamongodblab" > /data/mdb/arb1/mongoKey
+chown -R mongodb:dba /data/mdb/arb1/
+chmod 700 /data/mdb/arb1/mongoKey
+
+# arb2
+mkdir -p /data/mdb/arb2/01/data
+mkdir -p /data/mdb/arb2/02/data
+mkdir -p /data/mdb/arb2/03/data
+mkdir -p /data/mdb/arb2/04/data
+
+mkdir -p /data/mdb/arb2/log
+echo "perconamongodblab" > /data/mdb/arb2/mongoKey
+chown -R mongodb:dba /data/mdb/arb2/
+chmod 700 /data/mdb/arb2/mongoKey
+
+######################################################################
+#### 編寫 "Arbiter 啟動檔"
+######################################################################
+
+# 新增
+mkdir -p /104/mongodb_arb1/
+mkdir -p /104/mongodb_arb2/
+chown -R mongodb:dba /104/mongodb_arb1/
+chown -R mongodb:dba /104/mongodb_arb2/
+
+[arb1]+[arb2]
+------------------------------------------------------------------------------------------------------------------------------------------
+#!/bin/bash
+
+numactl="numactl --interleave=all";
+sd="/usr/bin/mongod";
+mdb="04";
+
+p01="--shardsvr";
+p02="--replSet rs004";
+p03="--port 20041";
+p04="--dbpath /data/mdb/${mdb}/data";
+p05="--logpath /data/mdb/log/${mdb}.log";
+p06="--keyFile /data/mdb/mongoKey";
+p07="--profile 1 --logappend --fork --journal --directoryperdb --noMoveParanoia --smallfiles --nohttpinterface";
+
+${numactl} ${sd} ${p01} ${p02} ${p03} ${p04} ${p05} ${p06} ${p07} &
+------------------------------------------------------------------------------------------------------------------------------------------
+
+##mongodb啟動程序檔
+su - mongodb -c /104/mongodb_arb1/mongod.start.sh
+su - mongodb -c /104/mongodb_arb2/mongod.start.sh
+
+# check mongod
+netstat -nltp | grep mongo
+ps -ef | grep mongo
+
+######################################################################
+### percona_mongodb_lab 的 rs001~rs004：
+######################################################################
+
+mongo localhost:20010
+#### percona_mongodb_lab replset define
+# rs001
+cfg = {
+  _id : "rs001",
+  members : [
+    { _id : 0, host : "percona_mongodb_lab-01-01:20010" },
+    { _id : 1, host : "percona_mongodb_lab-01-02:20011" },
+	{ _id : 2, host : "percona_mongodb_lab-arb1:20012", arbiterOnly : true },  
+]}
+rs.initiate(cfg)
+
+mongo localhost:20020
+#### percona_mongodb_lab replset define
+# rs002
+cfg = {
+  _id : "rs002",
+  members : [
+    { _id : 0, host : "percona_mongodb_lab-02-01:20020" },
+    { _id : 1, host : "percona_mongodb_lab-02-02:20021" },
+	{ _id : 2, host : "percona_mongodb_lab-arb1:20022", arbiterOnly : true },  
+]}
+rs.initiate(cfg)
+
+mongo localhost:20030
+#### percona_mongodb_lab replset define
+# rs003
+cfg = {
+  _id : "rs003",
+  members : [
+    { _id : 0, host : "percona_mongodb_lab-03-01:20030" },
+    { _id : 1, host : "percona_mongodb_lab-03-02:20031" },	
+	{ _id : 2, host : "percona_mongodb_lab-arb1:20032", arbiterOnly : true },  
+]}
+rs.initiate(cfg)
+
+mongo localhost:20040
+#### percona_mongodb_lab replset define
+# rs004
+cfg = {
+  _id : "rs004",
+  members : [
+    { _id : 0, host : "percona_mongodb_lab-04-01:20040" },
+    { _id : 1, host : "percona_mongodb_lab-04-02:20041" },	
+	{ _id : 2, host : "percona_mongodb_lab-arb1:20042", arbiterOnly : true },  
+]}
+rs.initiate(cfg)
+
+# 查看服務狀態
+rs.conf()
+rs.status()
+
+######################################################################
+### mdb0z-t-01 - 撰寫 恢復資料庫 .sh
+######################################################################
+
+#vi _recover.shard1.sh
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+#!/bin/bash
+
+#DAY=`date +'%Y%m%d'`
+
+#DIR="/data/mdb0z-t_backup"
+#SHARD="shard1"
+#DB="mdb0b00001"
+#PORT="20010"
+#LOGDIR="${DIR}/recover.${SHARD}.${DAY}.log"
+
+#declare -i DIFF;
+#START=$(date +%s);
+#cat /dev/null > ${LOGDIR}
+
+#echo "========================================" >> ${LOGDIR}
+#echo "START: ${START}" >> ${LOGDIR}
+
+#mongorestore -h localhost:${PORT} -d ${DB} ${DIR}/${SHARD}/${DB}
+
+#sleep 10
+
+#END=$(date +%s);
+#DIFF=$(( $END - $START ));
+
+#echo "END: ${END}" >> ${LOGDIR}
+#echo "========================================" >> ${LOGDIR}
+
+#printf "\nRecovery shard ${DIFF} seconds" >> ${LOGDIR}
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# 執行還原
+#sh -x _recover.shard1.sh
+#sh -x _recover.shard2.sh
+#sh -x _recover.shard3.sh
+#sh -x _recover.shard4.sh
+
+######################################################################
+#### 建置 "Config server 資料夾"
+######################################################################
+
+# 以下設備設定資料夾 cfg1, cfg2, cfg3
+
+mkdir -p /data/mdb/cfg1/configdb
+mkdir -p /data/mdb/cfg1/log
+echo "perconamongodblab" > /data/mdb/cfg1/mongoKey
+chown -R mongodb:dba /data/mdb/cfg1
+chmod 700 /data/mdb/cfg1/mongoKey
+chown -R mongodb:dba /data/mdb/cfg1/configdb
+chown -R mongodb:dba /data/mdb/cfg1/log
+
+mkdir -p /data/mdb/cfg2/configdb
+mkdir -p /data/mdb/cfg2/log
+echo "perconamongodblab" > /data/mdb/cfg2/mongoKey
+chown -R mongodb:dba /data/mdb/cfg2
+chmod 700 /data/mdb/cfg2/mongoKey
+chown -R mongodb:dba /data/mdb/cfg2/configdb
+chown -R mongodb:dba /data/mdb/cfg2/log
+
+mkdir -p /data/mdb/cfg3/configdb
+mkdir -p /data/mdb/cfg3/log
+echo "perconamongodblab" > /data/mdb/cfg3/mongoKey
+chown -R mongodb:dba /data/mdb/cfg3
+chmod 700 /data/mdb/cfg3/mongoKey
+chown -R mongodb:dba /data/mdb/cfg3/configdb
+chown -R mongodb:dba /data/mdb/cfg3/log
+
+# /104/mongodb_cfg1/
+
+mkdir -p /104/mongodb_cfg1/
+mkdir -p /104/mongodb_cfg2/
+mkdir -p /104/mongodb_cfg3/
+chown -R mongodb:dba /104/mongodb_cfg1/
+chown -R mongodb:dba /104/mongodb_cfg2/
+chown -R mongodb:dba /104/mongodb_cfg3/
+
+vi mongod.configsvr.sh
+----------------------------------------------------------------------------------
+#!/bin/bash
+
+numactl="numactl --interleave=all";
+sd="/usr/bin/mongod";
+
+p01="--configsvr";
+p02="--port 27019";
+p03="--dbpath /data/mdb/cfg1/configdb";
+p04="--logpath /data/mdb/cfg1/log/configdb.log";
+p05="--keyFile /data/mdb/cfg1/mongoKey";
+p06="--logappend --fork --directoryperdb --smallfiles --nohttpinterface";
+
+${numactl} ${sd} ${p01} ${p02} ${p03} ${p04} ${p05} ${p06} ${p07} &
+----------------------------------------------------------------------------------
+
+su - mongodb -c /104/mongodb_cfg1/mongod.configsvr.sh
+su - mongodb -c /104/mongodb_cfg2/mongod.configsvr.sh
+su - mongodb -c /104/mongodb_cfg3/mongod.configsvr.sh
+
+# check mongod
+netstat -nltp | grep mongo
+ps -ef | grep mongo
+
+######################################################################
+# 至各台config node回復config：
+######################################################################
+
+sh -x /104/mongodb_node1/mongod.start.sh
+sh -x /104/mongodb_node2/mongod.start.sh
+sh -x /104/mongodb_arb1/mongod.start.sh
+
+su - mongodb -c /104/mongodb_cfg1/mongod.configsvr.sh
+su - mongodb -c /104/mongodb_cfg2/mongod.configsvr.sh
+su - mongodb -c /104/mongodb_cfg3/mongod.configsvr.sh
+
+# 建置登入帳號
+mongo localhost:27019
+mongo localhost:27020
+mongo localhost:27021
+
+#### percona_mongodb_lab replset define
+# rscfg001
+rscfg1 = {
+  _id : "rscfg001",
+  members : [
+    { _id : 0, host : "percona_mongodb_lab-cfg1:27019" },
+    { _id : 1, host : "percona_mongodb_lab-cfg2:27020" },
+    { _id : 2, host : "percona_mongodb_lab-cfg3:27021" },
+]}
+rs.initiate(rscfg1)
+
+# 已移除 X → db.addUser("root","root321")
+
+use admin
+  
+db.createUser(
+   {
+     user: "root",
+     pwd: "root321",
+     roles: [ { role: "root", db: "admin" } ]
+   })
+
+###   
+   
+db.createUser(
+   {
+     user: "mydba",
+     pwd: "ji3g4dba",
+     roles: [ { role: "userAdminAnyDatabase", db: "admin" } ]
+   })
+
+   
+db.shutdownServer()
+   
+# =====
+{ 
+  user: "<name>",
+  pwd: "<cleartext password>",
+  customData: { <any information> },
+  roles: [
+    { role: "<role>", db: "<database>" } | "<role>",
+    ...
+  ]
+}
+- Manage Users and Roles # Changed in version 2.6: MongoDB 2.6 introduces a new authorization model.
+# =====
+
+########## mdb0z-t-cfg1.2.3 Shard define：add replset group as shard
+----------------------------------------------------------------------------------
+
+kill -9 `ps -ef |grep mongod |egrep -v grep |awk '{print $2}'`
+
+mongo admin -u root -p --host localhost:27019
+mongo admin -u root -p --host localhost:27020
+mongo admin -u root -p --host localhost:27021
+
+/*
+rs.add("percona_mongodb_lab-cfg1:27019")
+rs.add("percona_mongodb_lab-cfg2:27020")
+rs.add("percona_mongodb_lab-cfg3:27021")
+
+172.19.0.163    percona_mongodb_lab-cfg1.104.com.tw percona_mongodb_lab-cfg1
+172.19.0.163    percona_mongodb_lab-cfg2.104.com.tw percona_mongodb_lab-cfg2
+172.19.0.163    percona_mongodb_lab-cfg3.104.com.tw percona_mongodb_lab-cfg3
+*/
+#use config;
+#db.shards.find()
+#db.shards.remove()
+#db.shards.insert({ "_id" : "rs001", "host" : "rs001/percona_mongodb_lab-01-01:20010" })
+#db.shards.insert({ "_id" : "rs002", "host" : "rs002/percona_mongodb_lab-02-01:20020" })
+#db.shards.insert({ "_id" : "rs003", "host" : "rs003/percona_mongodb_lab-03-01:20030" })
+#db.shards.insert({ "_id" : "rs004", "host" : "rs004/percona_mongodb_lab-04-01:20040" })
+
+----------------------------------------------------------------------------------
+
+# 重新啟動
+#mongo admin -u root -p --host localhost:27019
+#mongo admin -u root -p --host localhost:27020
+#mongo admin -u root -p --host localhost:27021
+#use admin
+#db.shutdownServer()
+
+su - mongodb -c /104/mongodb_cfg1/mongod.configsvr.sh
+su - mongodb -c /104/mongodb_cfg2/mongod.configsvr.sh
+su - mongodb -c /104/mongodb_cfg3/mongod.configsvr.sh
+
+# 再次確認權限
+chown -R mongodb:dba /data/mdb/cfg1
+chmod 700 /data/mdb/cfg1/mongoKey
+chown -R mongodb:dba /data/mdb/cfg1/configdb
+chown -R mongodb:dba /data/mdb/cfg1/log
+
+chown -R mongodb:dba /data/mdb/cfg2
+chmod 700 /data/mdb/cfg2/mongoKey
+chown -R mongodb:dba /data/mdb/cfg2/configdb
+chown -R mongodb:dba /data/mdb/cfg2/log
+
+chown -R mongodb:dba /data/mdb/cfg3
+chmod 700 /data/mdb/cfg3/mongoKey
+chown -R mongodb:dba /data/mdb/cfg3/configdb
+chown -R mongodb:dba /data/mdb/cfg3/log
+
+######################################################################
+#### 編寫 "MongoS 啟動檔"
+######################################################################
+
+# 以下設備編寫啟動檔， s
+
+[s]
+mkdir /data/mdb/mongos/
+mkdir /data/mdb/mongos/log/
+echo "perconamongodblab" > /data/mdb/mongos/mongoKey
+chown -R mongodb:dba /data/mdb/mongos/
+chmod 700 /data/mdb/mongos/mongoKey
+
+mkdir -p /104/mongodb_s/
+
+vi /104/mongodb_s/mongos.sh
+------------------------------------------------------------------------------------------------------------------------------------------
+#!/bin/bash
+
+port="$1";
+if [ "${port}" == "" ]; then
+  port="27017";
+fi
+
+numactl="numactl --interleave=all";
+sd="/usr/bin/mongos";
+
+p1="--port ${port}";
+p2="--configdb percona_mongodb_lab-cfg1:27019,percona_mongodb_lab-cfg2:27020,percona_mongodb_lab-cfg3:27021"
+p3="--logpath /data/mdb/mongos/log/mongodbs.${port}.log";
+p4="--keyFile /data/mdb/mongos/mongoKey";
+p5="--logappend --fork --nohttpinterface";
+
+${numactl} ${sd} ${p1} ${p2} ${p3} ${p4} ${p5} &
+------------------------------------------------------------------------------------------------------------------------------------------
+
+### 注意 3.4 版要加入
+  --configdb arg                        Connection string for communicating 
+													  with config servers:<config replset name>/<host1:port>,<host2:port>,[...]
+###
+
+# 啟動 s
+su - mongodb -c /104/mongodb_s/mongos.sh
+
+# =====
+
+root@percona_mongodb_lab# /usr/bin/mongos --help
+
+General options:
+  -h [ --help ]                         show this usage information
+  --version                             show version information
+  -f [ --config ] arg                   configuration file specifying 
+                                        additional options
+  -v [ --verbose ] [=arg(=v)]           be more verbose (include multiple times
+                                        for more verbosity e.g. -vvvvv)
+  --quiet                               quieter output
+  --port arg                            specify port number - 27017 by default
+  --bind_ip arg                         comma separated list of ip addresses to
+                                        listen on - all local ips by default
+  --ipv6                                enable IPv6 support (disabled by 
+                                        default)
+  --maxConns arg                        max number of simultaneous connections 
+                                        - 1000000 by default
+  --logpath arg                         log file to send write to instead of 
+                                        stdout - has to be a file, not 
+                                        directory
+  --syslog                              log to systems syslog facility instead
+                                        of file or stdout
+  --syslogFacility arg                  syslog facility used for mongodb syslog
+                                        message
+  --logappend                           append to logpath instead of 
+                                        over-writing
+  --logRotate arg                       set the log rotation behavior 
+                                        (rename|reopen)
+  --timeStampFormat arg                 Desired format for timestamps in log 
+                                        messages. One of ctime, iso8601-utc or 
+                                        iso8601-local
+  --redactClientLogData                 Redact client data written to the 
+                                        diagnostics log
+  --pidfilepath arg                     full path to pidfile (if not set, no 
+                                        pidfile is created)
+  --keyFile arg                         private key for cluster authentication
+  --noauth                              run without security
+  --setParameter arg                    Set a configurable parameter
+  --httpinterface                       enable http interface
+  --transitionToAuth                    For rolling access control upgrade. 
+                                        Attempt to authenticate over outgoing 
+                                        connections and proceed regardless of 
+                                        success. Accept incoming connections 
+                                        with or without authentication.
+  --clusterAuthMode arg                 Authentication mode used for cluster 
+                                        authentication. Alternatives are 
+                                        (keyFile|sendKeyFile|sendX509|x509)
+  --nounixsocket                        disable listening on unix sockets
+  --unixSocketPrefix arg                alternative directory for UNIX domain 
+                                        sockets (defaults to /tmp)
+  --filePermissions arg                 permissions to set on UNIX domain 
+                                        socket file - 0700 by default
+  --fork                                fork server process
+  --networkMessageCompressors arg       Comma-separated list of compressors to 
+                                        use for network messages
+
+Sharding options:
+  --configdb arg                        Connection string for communicating 
+                                        with config servers:
+                                        <config replset name>/<host1:port>,<host2:port>,[...]
+  --localThreshold arg                  ping time (in ms) for a node to be 
+                                        considered local (default 15ms)
+  --test                                just run unit tests
+  --jsonp                               allow JSONP access via http (has 
+                                        security implications)
+  --noscripting                         disable scripting engine
+
+SSL options:
+  --sslOnNormalPorts                    use ssl on configured ports
+  --sslMode arg                         set the SSL operation mode 
+                                        (disabled|allowSSL|preferSSL|requireSSL
+                                        )
+  --sslPEMKeyFile arg                   PEM file for ssl
+  --sslPEMKeyPassword arg               PEM file password
+  --sslClusterFile arg                  Key file for internal SSL 
+                                        authentication
+  --sslClusterPassword arg              Internal authentication key file 
+                                        password
+  --sslCAFile arg                       Certificate Authority file for SSL
+  --sslCRLFile arg                      Certificate Revocation List file for 
+                                        SSL
+  --sslDisabledProtocols arg            Comma separated list of TLS protocols 
+                                        to disable [TLS1_0,TLS1_1,TLS1_2]
+  --sslWeakCertificateValidation        allow client to connect without 
+                                        presenting a certificate
+  --sslAllowConnectionsWithoutCertificates 
+                                        allow client to connect without 
+                                        presenting a certificate
+  --sslAllowInvalidHostnames            Allow server certificates to provide 
+                                        non-matching hostnames
+  --sslAllowInvalidCertificates         allow connections to servers with 
+                                        invalid certificates
+  --sslFIPSMode                         activate FIPS 140-2 mode at startup
+
+Audit Options:
+  --auditDestination arg                Output type: enables auditing 
+                                        functionality
+  --auditFormat arg                     Output format
+  --auditFilter arg                     JSON query filter on events, users, 
+                                        etc.
+  --auditPath arg                       Event destination file path and name
+
+# =====
+
+# 2016-06-14T13:34:15.921+0800 W SHARDING [main] Running a sharded cluster with fewer than 3 config servers should only be done for testing purposes and is not recommended for production.
+
+# =====
+
+root@percona_mongodb_lab:/104/mongodb_s# mongo -u root -p --host localhost:27017 admin
+Percona Server for MongoDB shell version v3.4.2-1.2
+Enter password: 
+connecting to: mongodb://localhost:27017/admin
+2017-03-09T15:14:52.346+0800 W NETWORK  [thread1] Failed to connect to 127.0.0.1:27017, in(checking socket for error after poll), reason: Connection refused
+2017-03-09T15:14:52.346+0800 E QUERY    [thread1] Error: couldnt connect to server localhost:27017, connection attempt failed :
+connect@src/mongo/shell/mongo.js:237:13
+@(connect):1:6
+exception: connect failed
+
+# =====
+
+# 使用root帳號測試登入
+mongo -u root -p --host localhost:27017 admin
+
+# mongo -u dba -p --host localhost:27017 admin
+MongoDB shell version: 3.2.5
+Enter password: 
+connecting to: localhost:27017/admin
+
+mongos> use admin
+
+mongos> db.auth('dba','dba321')
+1
+
+mongos> db.createUser(
+{
+user: "root",
+pwd: "root321",
+roles: [ { role: "root", db: "admin" } ]
+})
+Successfully added user: {
+	"user" : "root",
+	"roles" : [
+		{
+			"role" : "root",
+			"db" : "admin"
+		}
+	]
+}
+
+######################################################################
+# 登入 s 測試
+######################################################################
+
+mongo -u root -p --host localhost:27017 admin
+use admin
+db.shutdownServer()
+
+su - mongodb -c /104/mongodb_s/mongos.sh
+
+######################################################################
+# Shard lists (mongodb-s 中執行)
+######################################################################
+
+mongo -u root -p --host localhost:27017 admin
+
+use admin
+
+mongos> db.runCommand({addshard:"rs001/percona_mongodb_lab-01-01:20010,percona_mongodb_lab-01-02:20011,percona_mongodb_lab-arb1:20012"})
+{ "shardAdded" : "rs001", "ok" : 1 }
+mongos> db.runCommand({addshard:"rs002/percona_mongodb_lab-02-01:20020,percona_mongodb_lab-02-02:20021,percona_mongodb_lab-arb1:20022"})
+{ "shardAdded" : "rs002", "ok" : 1 }
+mongos> db.runCommand({addshard:"rs003/percona_mongodb_lab-03-01:20030,percona_mongodb_lab-03-02:20031,percona_mongodb_lab-arb1:20032"})
+{ "shardAdded" : "rs003", "ok" : 1 }
+mongos> db.runCommand({addshard:"rs004/percona_mongodb_lab-04-01:20040,percona_mongodb_lab-04-02:20041,percona_mongodb_lab-arb1:20042"})
+{ "shardAdded" : "rs004", "ok" : 1 }
+
+mongos> db.getSiblingDB("admin").runCommand( { listShards: 1 } )
+{
+	"shards" : [
+		{
+			"_id" : "rs001",
+			"host" : "rs001/mdb0z-t-01-01:20010"
+		},
+		{
+			"_id" : "rs002",
+			"host" : "rs002/mdb0z-t-02-01:20020"
+		},
+		{
+			"_id" : "rs003",
+			"host" : "rs003/mdb0z-t-03-01:20030"
+		},
+		{
+			"_id" : "rs004",
+			"host" : "rs004/mdb0z-t-04-01:20040"
+		}
+	],
+	"ok" : 1
+}
+
+###########################################################
+
+db.runCommand({enablesharding:'test'});
+db.runCommand({shardcollection:'test.basic', key:{idno:1}});
+
+db.runCommand({listshards:1})
+
+############################################################
+#注意 Sharded Cluster Setting 3.0 移除
+#Remove releaseConnectionsAfterResponse Parameter
+#MongoDB now always releases connections after response. releaseConnectionsAfterResponse parameter is no longer available.
+##########
+#2016-05-23T17:20:19.200+0800 W SHARDING [main] Running a sharded cluster with fewer than 3 config servers should only be done for testing purposes and is not recommended for production.
+############################################################
+
+
+
+###########################################################
+#### rm 刪除
+###########################################################
+
+rm -rf arb1/01/data/*
+rm -rf arb1/02/data/*
+rm -rf arb1/03/data/*
+rm -rf arb1/04/data/*
+rm -rf arb1/log/*
+rm -rf cfg1/configdb/*
+rm -rf cfg2/configdb/*
+rm -rf cfg3/configdb/*
+rm -rf cfg1/log/*
+rm -rf cfg2/log/*
+rm -rf cfg3/log/*
+rm -rf mongos/log/*
+rm -rf arb1/01/data/*
+rm -rf arb1/02/data/*
+rm -rf arb1/03/data/*
+rm -rf arb1/04/data/*
+rm -rf arb1/log/*
+rm -rf cfg1/log/*
+rm -rf cfg1/configdb/*
+rm -rf cfg2/configdb/*
+rm -rf cfg3/configdb/*
+rm -rf cfg2/log/*
+rm -rf cfg3/log/*
+rm -rf mongos/log/*
+rm -rf node1/01/data/*
+rm -rf node1/02/data/*
+rm -rf node1/03/data/*
+rm -rf node1/04/data/*
+rm -rf node2/04/data/*
+rm -rf node2/03/data/*
+rm -rf node2/02/data/*
+rm -rf node2/01/data/*
+rm -rf node2/log/*
+rm -rf node1/log/*
+
+rm /tmp/mongodb-*
