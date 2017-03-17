@@ -1,0 +1,2114 @@
+###########################################################
+#### Redis 網路資訊收集
+###########################################################
+
+# 「 Redis-3.2.0 集群配置（redis cluster）」 --- http://blog.chinaunix.net/uid-20682147-id-5557566.html
+# 「conf 配置說明」--- http://shift-alt-ctrl.iteye.com/blog/1882850
+# 「Redis Load Balance」--- http://blog.csdn.net/lifetragedy/article/details/50885126
+# 「redis cluster管理工具」--- http://weizijun.cn/2016/01/08/redis%20cluster管理工具redis-trib-rb详解/ 
+# 「redis cluster功能介绍」--- http://weizijun.cn/2015/12/30/redis3.0%20cluster%E5%8A%9F%E8%83%BD%E4%BB%8B%E7%BB%8D/
+# 「Redis Cluster 原理」--- http://blog.csdn.net/dc_726/article/details/48552531
+# 「Redis 3.0.0 Cluster Redis集群的其他操作」 --- http://sgq0085.iteye.com/blog/2199277 
+# 「Redis 安全」 --- https://www.lijun.me/753.html
+# 「Redis Cluster 原理」 --- http://shift-alt-ctrl.iteye.com/blog/2285470
+
+###########################################################
+#### Redis _ 3.2 - 編譯
+###########################################################
+
+$ tar xzf redis-3.2.6.tar.gz
+$ cd redis-3.2.6
+$ make
+$ make test  				#觀看是否有缺少的套件
+$ make install
+
+make PREFIX=/usr/local/redis install
+make PREFIX=/usr/local install
+make PREFIX=/usr install
+cp redis.conf /usr/local/redis/redis_example.conf
+
+# https://segmentfault.com/a/1190000006619753
+
+########################################
+
+# Proteced mode 模式
+值得注意的是在3.2.0以後的新版本中引入了一種 Proteced mode 模式
+
+.conf 記得改成 -> bind 0.0.0.0 才可正常同步
+
+# http://blog.csdn.net/xlgen157387/article/details/52022793
+
+###########################################################
+#### 套件問題
+###########################################################
+
+[root@rdb04-S-T1 redis-3.2.6]# make test
+cd src && make test
+make[1]: Entering directory `/source/redis-3.2.6/src'`
+You need tcl 8.5 or newer in order to run the Redis test
+make[1]: *** [test] Error 1
+make[1]: Leaving directory `/source/redis-3.2.6/src'`
+make: *** [test] Error 2
+
+[root@rdb04-S-T1 redis-3.2.6]# rpm -qa | grep tcl
+tcl-devel-8.4.13-4.el5.x86_64
+tcl-8.4.13-4.el5.x86_64
+rrdtool-tcl-1.4.1-1.wrl.x86_64
+
+###########################################################
+#### 移除舊套件
+###########################################################
+
+rpm -qa | grep tk
+rpm -qa | grep tcl
+
+########################################
+
+# 移除
+[root@rdb04-S-T1 redis-3.2.6]# 
+
+rpm -e tk-devel-8.4.13-5.el5_1.1.x86_64
+rpm -e tk-8.4.13-5.el5_1.1.x86_64
+rpm -e tcl-devel-8.4.13-4.el5.x86_64
+rpm -e tcl-8.4.13-4.el5.x86_64
+
+###########################################################
+#### 安裝新套件
+###########################################################
+
+# 安裝新版相依套件
+[root@rdb04-S-T1 redis-3.2.6]# rpm -ivh --nodeps /source/libXft-devel-2.3.2-1.el6.x86_64.rpm 
+Preparing...                ########################################### [100%]
+   1:libXft-devel           ########################################## [100%]
+[root@rdb04-S-T1 redis-3.2.6]# rpm -ivh --nodeps /source/libX11-devel-1.6.3-2.el6.x86_64.rpm 
+Preparing...                ########################################### [100%]
+   1:libX11-devel           ########################################## [100%]	
+
+# 安裝 Redis 主要套件
+[root@rdb04-S-T1 redis-3.2.6]# rpm -Uvh /source/tcl-8.5.7-6.el6.x86_64.rpm 
+Preparing...                ######################################### [100%]
+   1:tcl                    ########################################### [100%]
+[root@rdb04-S-T1 redis-3.2.6]# rpm -Uvh /source/tcl-devel-8.5.7-6.el6.x86_64.rpm 
+Preparing...                ########################################### [100%]
+   1:tcl-devel              ########################################### [100%]
+[root@rdb04-S-T1 redis-3.2.6]# rpm -Uvh /source/tk-8.5.7-5.el6.x86_64.rpm 
+Preparing...                ######################################### [100%]
+   1:tk                     ########################################### [100%]
+[root@rdb04-S-T1 redis-3.2.6]# rpm -Uvh /source/tk-devel-8.5.7-5.el6.x86_64.rpm
+Preparing...                ########################################### [100%]
+   1:tk-devel               ########################################### [100%]
+   
+###
+
+rpm -ivh --nodeps /source/libXft-devel-2.3.2-1.el6.x86_64.rpm
+rpm -ivh --nodeps /source/libX11-devel-1.6.3-2.el6.x86_64.rpm
+
+rpm -Uvh /source/tcl-8.5.7-6.el6.x86_64.rpm
+rpm -Uvh /source/tcl-devel-8.5.7-6.el6.x86_64.rpm
+rpm -Uvh /source/tk-8.5.7-5.el6.x86_64.rpm
+rpm -Uvh /source/tk-devel-8.5.7-5.el6.x86_64.rpm
+
+###########################################################
+#### \o/ All tests passed without errors!
+###########################################################
+
+◆ 設定sysctl.conf
+#vi /etc/sysctl.conf
+#-------------------------------------------
+#for redis
+#vm.overcommit_memory = 1
+#-------------------------------------------
+#sysctl -p
+
+◆ Redis目錄建立
+# mkdir /opt/redis/
+# mkdir /source/redis
+# mkdir /data/rdb0X
+# mkdir /data/rdb0X/data
+# mkdir /data/rdb0X/logs
+# chown -R redis:dba /data/rdb0X
+# chmod -R ugo+rwx /etc/init.d/redis
+
+◆ Redis安裝
+# cd /source/
+# tar -zxvf ./redis-3.2.6.tar.gz -C /opt/redis/
+# cd /opt/redis/redis-3.2.6/
+# make
+# make test  				#觀看是否有缺少的套件
+# make install PREFIX=/opt/redis/redis-3.2.6/
+
+◆ 建立啟動檔
+# cp /opt/redis/redis-3.2.6/utils/redis_init_script /etc/init.d/redis
+# vi /etc/init.d/redis
+. "/104/_config.sh"
+REDISPORT=6379
+EXEC=/opt/redis/redis-3.2.6/bin/redis-server
+CLIEXEC=/opt/redis/redis-3.2.6/bin/redis-cli
+PIDFILE=/tmp/redis.pid
+CONF="/data/${HOST_PREFIX}/redis.conf"
+#CONF="/data/rdb0t/redis.conf"
+
+◆ 建立帳號
+useradd -g dba redis
+
+◆ 設定redis.conf參數檔
+# cp /opt/redis/redis-3.2.6/redis.conf /data/rdb0X/
+# vi /data/rdb0X/redis.conf
+bind 0.0.0.0
+daemonize yes
+pidfile /tmp/redis.pid
+logfile /data/rdb0X/logs/redis.logs
+databases 50
+dir /data/rdb0X/data
+maxmemory 14000000000  --避免OOM設定實際RAM的約80%
+
+◆ 記得改成 -> bind 0.0.0.0 才可正常同步
+
+◆ 啟動Redis
+# 啟動redis server 
+# /etc/init.d/redis start
+su - redis -c "/etc/init.d/redis start"
+
+# 測試連線
+/opt/redis/redis-3.2.6/bin/redis-cli -p 6379 PING
+PONG ---> 代表有連線成功
+
+/*
+# 倒入資料
+su - redis -c "/etc/init.d/redis stop"
+cp /mnt/rdb0t/2016061700.rdb03.data.tar.gz /data/backup/
+cd /data/backup
+tar -zxf ./2016061700.rdb03.data.tar.gz 
+cp /data/backup/data/rdb0t/data/dump.rdb /data/rdb0t/data/
+*/
+
+## 確認資料
+su - redis -c "/etc/init.d/redis start"
+/opt/redis/redis-3.2.6/bin/redis-cli info replication
+/opt/redis/redis-3.2.6/bin/redis-cli -h 172.30.37.114
+redis 172.30.37.114:6379> info
+
+###########################################################
+#### 修改系統參數
+###########################################################
+
+1. 修改最大可打開文件數
+修改文件/etc/security/limits.conf ，加入以下兩行：
+* soft nofile  10240
+* hard nofile  10240
+# End of file
+ 
+其中10240為一個進程最大可以打開的文件個數，當與RedisServer 的連接數多時，需要設定為合適的值。
+修改後，需要重新登錄才會生效，如果是crontab ，則需要重啟crontab ，如：service crond restart ，有些平台可能是service cron restart 。
+
+2. TCP 監聽隊列大小
+即TCP listen 的backlog 大小，“ /proc/sys/net/core/somaxconn”的默認值一般較小如128 ，需要修改大一點，比如改成32767 。
+立即生效還可以使用命令： sysctl -w net.core.somaxconn=20480 。
+要想永久生效，需要在文件/etc/sysctl.conf 中增加一行：net.core.somaxconn = 20480 ，然後執行命令“ sysctl -p ”以生效。
+# 修改方式
+vi /etc/sysctl.conf
+net.core.somaxconn = 20480  					# 最大隊列長度，應付突發的大並發連接請求，默認為128
+net.ipv4.tcp_max_syn_backlog = 20480    # 半連接隊列長度，此值受限於內存大小，默認為1024
+sysctl -p 
+
+3. OOM 相關：vm.overcommit_memory
+如果“ /proc/sys/vm/overcommit_memory ”的值為0 ，則會表示開啟了OOM 。
+可以設置為1 關閉OOM ，設置方法請參照net.core.somaxconn 完成。
+
+4. /sys/kernel/mm/transparent_hugepage/enabled
+默認值為“ [always] madvise never ”，建議設置為never ，以開啟內核的“ Transparent Huge Pages (THP) ”特性，設置後redis 進程需要重啟。
+為了永久生效，請將“ echo never > /sys/kernel/mm/transparent_hugepage/enabled ”加入到文件/etc/rc.local 中。
+# 修改方式
+vi /etc/rc.local
+echo never > /sys/kernel/mm/transparent_hugepage/enabled
+# 注：在開機時追加此指令，原本預設是 [always]
+
+###########################################################
+#### Keepalived HA切換設定
+###########################################################
+
+◆ Keepalived HA切換設定  - 設定 /etc/hosts
+# vi /etc/hosts
+# for redis
+
+172.16.98.107 rdb0t-1
+172.16.99.107 rdb0t-2
+
+# ◆ yum -y install openssl-devel <或 DBA file Source\redis\rpm>
+
+rpm -Uvh keyutils-libs-devel-1.4-4.el6.x86_64.rpm
+rpm -Uvh libcom_err-devel-1.41.12-18.el6.x86_64.rpm
+rpm -Uvh libsepol-devel-2.0.41-4.el6.x86_64.rpm 
+rpm -Uvh libselinux-devel-2.0.94-5.3.el6_4.1.x86_64.rpm
+rpm -Uvh krb5-devel-1.10.3-15.el6_5.1.x86_64.rpm
+rpm -Uvh zlib-devel-1.2.3-29.el6.x86_64.rpm
+rpm -Uvh openssl-devel-1.0.1e-16.el6_5.14.x86_64.rpm 
+
+# cd /source/
+# tar -zxf /source/keepalived-1.2.12.tar.gz
+# cd /source/keepalived-1.2.12
+# ./configure --prefix=/
+# make && make install
+
+# 設定rdb0t-1、rdb0t-2同步
+/opt/redis/redis-3.2.6/bin/redis-cli info replication
+
+# 設定rdb0t-2同步rdb0t-1
+[ rdb0t-2 ]
+/opt/redis/redis-3.2.6/bin/redis-cli slaveof 172.16.98.107 6379
+[OK]
+
+◆ 設定keepalived參數檔
+在rdb0t-1 & rdb0t-2上建立keepalived.conf參數檔
+# mkdir /etc/scripts
+# cd /etc/keepalived
+# mv keepalived.conf bak.keepalived.conf
+
+◆ 後續請參考 SOP\02-Redis\02_201608_Keepalived HA切換設定.docx
+
+◆ /etc/init.d/keepalived start
+
+◆ 查看writer ip已綁上
+# ip addr list eth0
+
+◆ keepalived相關指令
+# /etc/init.d/keepalived 
+Usage: /etc/init.d/keepalived {start|stop|reload|restart|condrestart|status}
+
+◆ logfile keepalived
+tail -F /var/log/keepalived-redis-state.log
+
+###########################################################
+#### WARNING
+###########################################################
+
+### 啟動後遇到的提醒
+11776:M 01 Dec 17:20:13.439 # WARNING you have Transparent Huge Pages (THP) support enabled in your kernel. This will create latency and memory usage issues with Redis. To fix this issue run the command 'echo never > /sys/kernel/mm/transparent_hugepage/enabled' as root, and add it to your /etc/rc.local in order to retain the setting after a reboot. Redis must be restarted after THP is disabled.
+11776:M 01 Dec 17:20:13.439 * The server is now ready to accept connections on port 6379
+
+### info
+WARNING you have Transparent Huge Pages (THP) support enabled in your kernel. This will create latency and memory usage issues with Redis. 
+To fix this issue run the command 'echo never > /sys/kernel/mm/transparent_hugepage/enabled' as root, and add it to your /etc/rc.local in order to retain the setting after a reboot. 
+Redis must be restarted after THP is disabled.
+
+### Transparent Huge Pages (THP)
+警告，這是一個關於透明內存巨頁的話題。
+簡單來說內存可管理的最小單位是page，一個page通常是4kb，那個1M內存就會有256個page，CPU通過內部的內存管理單元管理頁表記錄。
+Huge page 就是表示 page 的大小已超過4kb了，一般是2M到1G，它的出現主要是為了管理超大內存。
+而THP就是管理 Huge Pages 的一個抽象層次，根據一個資源顯示THP會導致內存鎖住影響性能，所以一般建議關閉此功能。
+主要的“/sys/kernel/mm/transparent_hugepage/enabled”有三個值，如下：
+
+$ cat /sys/kernel/mm/transparent_hugepage/enabled
+
+		always [madvise] never
+     	---
+     	＃always		盡量使用透明內存，掃描內存，有512個4k頁面可以整合，就整合成一個2M的頁面
+     	＃never			關閉，不使用透明內存
+     	＃madvise	避免改變內存佔用
+
+直接執行 echo never > /sys/kernel/mm/transparent_hugepage/enabled
+
+###########################################################
+#### 錯誤資訊收集
+###########################################################
+
+# 1
+$ vi /etc/sysctl.conf
+$ net.core.somaxconn = 20480  					# 最大隊列長度，應付突發的大並發連接請求，默認為128
+$ net.ipv4.tcp_max_syn_backlog = 20480    # 半連接隊列長度，此值受限於內存大小，默認為1024
+$ sysctl -p 
+
+# 2
+警告：過量使用內存設置為0！在低內存環境下，後台保存可能失敗。為了修正這個問題，
+請在/etc/sysctl.conf中添加一項'vm.overcommit_memory = 1'，
+然後重啟（或者運行命令'sysctl vm.overcommit_memory = 1'）使其生效。
+
+vm.overcommit_memory不同的值說明：
+
+0 表示檢查是否有足夠的內存可用，如果是，允許分配;如果內存不夠，拒絕該請求，並返回一個錯誤給應用程序。
+1 允許分配超出物理內存加上交換內存的請求
+2 內核總是返回true
+
+redis的資料回寫機制分為兩種：
+
+同步回寫即SAVE命令.redis主進程直接寫入資料到磁盤。當資料量大時，這個命令將阻塞，響應時間長。
+異步回寫即BGSAVE命令.redis主進程fork一個子進程，複製主進程的內存並通過子進程回寫資料到磁盤。
+由於RDB文件寫的時候fork一個子進程。相當於復制了一個內存鏡像。當時系統的內存是4G，而redis佔用了近3G的內存，
+因此肯定會報內存無法分配。如果「vm.overcommit_memory」設置為0，在可用內存不足的情況下，
+就無法分配新的內存。如果“vm.overcommit_memory”設置為1.那麼redis將使用交換內存。
+
+$ vim / etc / sysctl
+$ vm.overcommit_memory = 1  # 末尾追加
+$ sysctl -p  #注：使用交換內存並不是一個完美的方案。最好的辦法是擴大物理內存。
+
+###########################################################
+#### redis 集群技術 < Redis Cluster >
+###########################################################
+
+### [Redis3.2 新功能--GEO地理位置]
+
+一、環境
+redis：3.2.6
+gem-redis：3.2.2
+
+二、搭建 Cluster 集群
+
+1、本機下載redis-3.2.6.tar.gz
+redis官網：https://redis.io/download
+
+2、從本機 cp 安裝檔案
+scp redis-3.2.6.tar.gz root@00.00.00.00:/tmp/
+
+3、進入 server 解壓安裝 <參考最上方 3.2 安裝步驟>
+
+4、建 Cluster 文件夾
+mkdir /data/cluster -p
+cd /data/cluster/
+mkdir 7001 7002 7003 7004 7005 7006 7011 7012 7013 7014 7015 7016
+
+5、cp 修改 conf 配置檔案
+cp /opt/redis-3.2.6/redis.conf /data/cluster/7000/
+vi /data/cluster/7000/redis.conf
+bind 0.0.0.0
+port 7000
+daemonize yes
+cluster-enabled yes
+cluster-config-file nodes.conf
+cluster-node-timeout 15000
+--- cp 該 redis.conf 到 7001~7005，並且修改 port
+
+6、啟動6個 redis 實例
+cd /data/cluster/7000
+redis-server redis.conf
+- 其他類似~
+
+7、安裝 ruby 相依套件
+apt-get install tree
+apt-get install ruby
+
+### centos : yum install ruby​​ ruby​​gems -y
+
+8、安裝 ruby​​gems 相依套件
+手動安裝 RubyGems ，RubyGems 是一個 Ruby 管理框架，它的下載網址：https://rubygems.org/pages/download。
+下載安裝包 rubygems-2.6.10.zip or .tgz 後解壓，然後進入解壓目錄，裡面有個 setup.rb 文件，
+以 root 執行：ruby setup.rb 安裝 RubyGems。
+* 安裝指令：ruby setup.rb
+
+8、下載 gem-redis 並上傳
+下載：https://rubygems.org/gems/redis/versions/3.2.6 or 3.3.2
+將 gem-redis 拷貝到 X.X.X.X
+scp redis-3.2.2.gem root@0.0.0.0:/tmp/
+* 安裝指令：gem install -l redis-3.2.2.gem
+
+9、將集群管理程序複製到/usr/local/bin/
+cp /opt/redis/redis-3.2.6/src/redis-trib.rb /usr/local/bin/redis-trib
+
+10、建立 Cluster 集群
+參數說明：
+(1) create
+表示建立一個 redis cluster 集群。
+(2) --replicas 1
+表示為集群中的每一個masters節點指定一個slave節點，即一比一的複製。<這樣就必須建置六台>
+
+集群正常工作至少需要3個主節點：以上是三 masters 三 slave。
+
+指令：
+redis-trib create --replicas 1 172.19.1.250:7000 172.19.1.250:7001 172.19.1.250:7002 172.19.1.250:7003 172.19.1.250:7004 172.19.1.250:7005
+
+### 測試連線
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7000 PING
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7001 PING
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7002 PING
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7003 PING
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7004 PING
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7005 PING
+PONG ---> 代表有連線成功
+
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7001 info Keyspace
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7002 info Keyspace
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7003 info Keyspace
+
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7001 info cluster
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7002 info cluster
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7003 info cluster
+
+###########################################################
+#### redis-trib 啟動後畫面 <需要輸入yes>
+###########################################################
+
+root@vm-ubuntu-1604-LTS:/data/cluster# redis-trib create --replicas 1 172.19.1.250:7000 172.19.1.250:7001 172.19.1.250:7002 172.19.1.250:7003 172.19.1.250:7004 172.19.1.250:7005
+>>> Creating cluster
+>>> Performing hash slots allocation on 6 nodes...
+Using 3 masters:
+172.19.1.250:7000
+172.19.1.250:7001
+172.19.1.250:7002
+Adding replica 172.19.1.250:7003 to 172.19.1.250:7000
+Adding replica 172.19.1.250:7004 to 172.19.1.250:7001
+Adding replica 172.19.1.250:7005 to 172.19.1.250:7002
+M: 06236e5c04a2ea4d219e13b1d37468a2b0494429 172.19.1.250:7000
+   slots:0-5460 (5461 slots) master
+M: 86aaf7cd13c76f13125d841ccb8bb62d185ef28f 172.19.1.250:7001
+   slots:5461-10922 (5462 slots) master
+M: 6d84567c503a6c5fe77d28b51f9c9b3e32d81c0e 172.19.1.250:7002
+   slots:10923-16383 (5461 slots) master
+S: 857336604b12b2facf2b7aff0c2d376103bee2b4 172.19.1.250:7003
+   replicates 06236e5c04a2ea4d219e13b1d37468a2b0494429
+S: 415e6b3d577df7d2e8adc7865d3fa1b563d9205e 172.19.1.250:7004
+   replicates 86aaf7cd13c76f13125d841ccb8bb62d185ef28f
+S: ca952b88be2d6e6d24ba479a4c82663a2fe8a49d 172.19.1.250:7005
+   replicates 6d84567c503a6c5fe77d28b51f9c9b3e32d81c0e
+
+Can I set the above configuration? (type 'yes' to accept): yes
+
+>>> Nodes configuration updated
+>>> Assign a different config epoch to each node
+>>> Sending CLUSTER MEET messages to join the cluster
+Waiting for the cluster to join.....
+>>> Performing Cluster Check (using node 172.19.1.250:7000)
+
+M: 06236e5c04a2ea4d219e13b1d37468a2b0494429 172.19.1.250:7000
+   slots:0-5460 (5461 slots) master
+   1 additional replica(s)
+M: 86aaf7cd13c76f13125d841ccb8bb62d185ef28f 172.19.1.250:7001
+   slots:5461-10922 (5462 slots) master
+   1 additional replica(s)
+M: 6d84567c503a6c5fe77d28b51f9c9b3e32d81c0e 172.19.1.250:7002
+   slots:10923-16383 (5461 slots) master
+   1 additional replica(s)
+ 
+S: 857336604b12b2facf2b7aff0c2d376103bee2b4 172.19.1.250:7003
+   slots: (0 slots) slave
+   replicates 06236e5c04a2ea4d219e13b1d37468a2b0494429
+S: 415e6b3d577df7d2e8adc7865d3fa1b563d9205e 172.19.1.250:7004
+   slots: (0 slots) slave
+   replicates 86aaf7cd13c76f13125d841ccb8bb62d185ef28f
+S: ca952b88be2d6e6d24ba479a4c82663a2fe8a49d 172.19.1.250:7005
+   slots: (0 slots) slave
+   replicates 6d84567c503a6c5fe77d28b51f9c9b3e32d81c0e
+   
+[OK] All nodes agree about slots configuration.
+>>> Check for open slots...
+>>> Check slots coverage...
+[OK] All 16384 slots covered.
+
+###########################################################
+#### log 啟動後畫面 <觀察>
+###########################################################
+
+### CLUSTER   0 -> 3
+### CLUSTER   1 -> 4
+### CLUSTER   2 -> 5
+
+### cat redis_7000.logs 
+8248:M 08 Feb 13:00:48.296 # configEpoch set to 1 via CLUSTER SET-CONFIG-EPOCH
+8248:M 08 Feb 13:00:48.377 # IP address for this node updated to 172.19.1.250
+8248:M 08 Feb 13:00:53.210 # Cluster state changed: ok
+8248:M 08 Feb 13:00:54.891 * Slave 172.19.1.250:7003 asks for synchronization
+8248:M 08 Feb 13:00:54.891 * Full resync requested by slave 172.19.1.250:7003
+8248:M 08 Feb 13:00:54.891 * Starting BGSAVE for SYNC with target: disk
+8248:M 08 Feb 13:00:54.892 * Background saving started by pid 10890
+10890:C 08 Feb 13:00:54.910 * DB saved on disk
+10890:C 08 Feb 13:00:54.911 * RDB: 0 MB of memory used by copy-on-write
+8248:M 08 Feb 13:00:54.913 * Background saving terminated with success
+8248:M 08 Feb 13:00:54.913 * Synchronization with slave 172.19.1.250:7003 succeeded
+
+### cat redis_7003.logs
+8266:M 08 Feb 13:00:48.297 # configEpoch set to 4 via CLUSTER SET-CONFIG-EPOCH
+8266:M 08 Feb 13:00:48.479 # IP address for this node updated to 172.19.1.250
+8266:M 08 Feb 13:00:53.487 # Cluster state changed: ok
+8266:S 08 Feb 13:00:54.890 * Connecting to MASTER 172.19.1.250:7000
+8266:S 08 Feb 13:00:54.890 * MASTER <-> SLAVE sync started
+8266:S 08 Feb 13:00:54.890 * Non blocking connect for SYNC fired the event.
+8266:S 08 Feb 13:00:54.891 * Master replied to PING, replication can continue...
+8266:S 08 Feb 13:00:54.891 * Partial resynchronization not possible (no cached master)
+8266:S 08 Feb 13:00:54.892 * Full resync from master: 50369f074479d5946ecff177c2aa66ab6d69cf42:1
+8266:S 08 Feb 13:00:54.913 * MASTER <-> SLAVE sync: receiving 76 bytes from master
+8266:S 08 Feb 13:00:54.913 * MASTER <-> SLAVE sync: Flushing old data
+8266:S 08 Feb 13:00:54.914 * MASTER <-> SLAVE sync: Loading DB in memory
+8266:S 08 Feb 13:00:54.914 * MASTER <-> SLAVE sync: Finished with success
+
+###########################################################
+#### Redis HA 狀態
+###########################################################
+
+### HA 狀態
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7000 info replication
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7001 info replication
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7002 info replication
+
+# 範例 # Replication _ 7000
+role:master
+connected_slaves:1
+slave0:ip=172.19.1.250,port=7003,state=online,offset=2199,lag=1
+master_repl_offset:2199
+repl_backlog_active:1
+repl_backlog_size:1048576
+repl_backlog_first_byte_offset:2
+repl_backlog_histlen:2198
+
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7003 info replication
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7004 info replication
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7005 info replication
+
+# 範例 # Replication _ 7003
+role:slave
+master_host:172.19.1.250
+master_port:7000
+master_link_status:up
+master_last_io_seconds_ago:6
+master_sync_in_progress:0
+slave_repl_offset:2535
+slave_priority:100
+slave_read_only:1
+connected_slaves:0
+master_repl_offset:0
+repl_backlog_active:0
+repl_backlog_size:1048576
+repl_backlog_first_byte_offset:0
+repl_backlog_histlen:0
+
+# 確認集群狀態
+redis-trib.rb check 172.19.1.250:7000
+
+# ps 確認
+ps aux|grep redis
+
+# 指令 CLUSTER NODES
+root@vm-ubuntu-1604-LTS:/data# redis-cli -c -p 7000
+127.0.0.1:7000> CLUSTER NODES
+415e6b3d577df7d2e8adc7865d3fa1b563d9205e 	172.19.1.250:7004 slave 86aaf7cd13c76f13125d841ccb8bb62d185ef28f 0 1486630059881 5 connected
+06236e5c04a2ea4d219e13b1d37468a2b0494429 172.19.1.250:7000 myself,master - 0 0 1 connected 0-5460
+6d84567c503a6c5fe77d28b51f9c9b3e32d81c0e 	172.19.1.250:7002 master - 0 1486630056877 3 connected 10923-16383
+ca952b88be2d6e6d24ba479a4c82663a2fe8a49d 	172.19.1.250:7005 slave 6d84567c503a6c5fe77d28b51f9c9b3e32d81c0e 0 1486630058880 6 connected
+857336604b12b2facf2b7aff0c2d376103bee2b4 	172.19.1.250:7003 slave 06236e5c04a2ea4d219e13b1d37468a2b0494429 0 1486630057878 4 connected
+86aaf7cd13c76f13125d841ccb8bb62d185ef28f 	172.19.1.250:7001 master - 0 1486630056377 2 connected 5461-10922
+
+###########################################################
+#### cluster  六台若1M+1S壞
+###########################################################
+
+root@vm-ubuntu-1604-LTS:/data/file/redis-rb-cluster-master# /opt/redis/redis-3.2.6/bin/redis-cli -c -p 7001
+127.0.0.1:7001> SELECT 0
+OK
+127.0.0.1:7001> get okset1
+-> Redirected to slot [9445] located at 172.19.1.250:7002
+"1"
+172.19.1.250:7002> get okset2
+-> Redirected to slot [5254] located at 172.19.1.250:7001
+"2"
+172.19.1.250:7001> get okset3
+"3"
+172.19.1.250:7001> get okset4
+-> Redirected to slot [13376] located at 172.19.1.250:7003
+"4"
+172.19.1.250:7003> get okset5
+-> Redirected to slot [9313] located at 172.19.1.250:7002
+"5"
+172.19.1.250:7002> get okset6
+-> Redirected to slot [5122] located at 172.19.1.250:7001
+"6"
+172.19.1.250:7001> get okset7
+"7"
+172.19.1.250:7001> get okset8
+-> Redirected to slot [13772] located at 172.19.1.250:7003
+"8"
+172.19.1.250:7003> get okset9
+-> Redirected to slot [9709] located at 172.19.1.250:7002
+"9"
+172.19.1.250:7002> get okset10
+-> Redirected to slot [14261] located at 172.19.1.250:7003
+"10"
+
+###
+
+root@vm-ubuntu-1604-LTS:/data/file/redis-rb-cluster-master# sh -x /etc/init.d/redis_stop_all 
++ su - redis -c /etc/init.d/redis_7001 stop
+Stopping ...
+Redis stopped
++ su - redis -c /etc/init.d/redis_7004 stop
+Stopping ...
+Redis stopped
+root@vm-ubuntu-1604-LTS:/data/file/redis-rb-cluster-master# /opt/redis/redis-3.2.6/bin/redis-cli -c -p 7001
+Could not connect to Redis at 127.0.0.1:7001: Connection refused
+Could not connect to Redis at 127.0.0.1:7001: Connection refused
+not connected> exit
+root@vm-ubuntu-1604-LTS:/data/file/redis-rb-cluster-master# /opt/redis/redis-3.2.6/bin/redis-cli -c -p 7002
+127.0.0.1:7002> get okset1
+"1"
+127.0.0.1:7002> get okset2
+-> Redirected to slot [5254] located at 172.19.1.250:7001
+Could not connect to Redis at 172.19.1.250:7001: Connection refused
+Could not connect to Redis at 172.19.1.250:7001: Connection refused
+not connected> get okset3
+Could not connect to Redis at 172.19.1.250:7001: Connection refused
+not connected> exit
+root@vm-ubuntu-1604-LTS:/data/file/redis-rb-cluster-master# /opt/redis/redis-3.2.6/bin/redis-cli -c -p 7002
+127.0.0.1:7002> get okset6
+-> Redirected to slot [5122] located at 172.19.1.250:7001
+Could not connect to Redis at 172.19.1.250:7001: Connection refused
+Could not connect to Redis at 172.19.1.250:7001: Connection refused
+not connected> exit
+
+###########################################################
+#### cluster  info 詳細
+###########################################################
+
+cluster_state: ok 
+# 所有slots正常則顯示為OK，否則為error 
+cluster_slots_assigned: 16384
+# 多少slots被分配了，即多少被master管理了，16384 為全部slots 
+cluster_slots_ok:16384 
+# 有多少slots是正常的 
+cluster_slots_pfail:0 
+# 有多少slots可能處於異常狀態，處於這個狀態並不表示有問題，仍能繼續提供服務 
+cluster_slots_fail:0 
+# 有多少slots處於異常狀態，需要修復才能服務 
+cluster_known_nodes:6 
+# 集群中的節點數 
+cluster_size:3 
+# 集群中master個數 
+cluster_current_epoch:6 
+# 本地的當前時間變量，用於故障切換時生成獨一無二的增量版本號 
+cluster_my_epoch:1
+cluster_stats_messages_sent:4049 
+# 通過集群消息總線發送的消息總數 
+cluster_stats_messages_received:4051 
+# 通過過集通過群消息總線收到的消息總數 
+
+###########################################################
+#### redis-cli 測試
+###########################################################
+
+root@vm-ubuntu-1604-LTS:/data# redis-cli -p 7000
+127.0.0.1:7000> set foo bar
+(error) MOVED 12182 172.19.1.250:7002
+127.0.0.1:7000> exit
+root@vm-ubuntu-1604-LTS:/data# redis-cli -c -p 7000
+127.0.0.1:7000> set foo bar
+-> Redirected to slot [12182] located at 172.19.1.250:7002
+OK
+
+###########################################################
+#### redis 寫入
+###########################################################
+
+root@vm-ubuntu-1604-LTS:/data# for ((i=0; i<10000; ++i)); do redis-cli -c -p 7000 set datatest$i oktest; done
+
+root@vm-ubuntu-1604-LTS:/data# redis-cli -c -p 7000
+127.0.0.1:7000> SELECT 0
+OK
+127.0.0.1:7000> get vmdatatest2
+-> Redirected to slot [6711] located at 172.19.1.250:7001
+"oktestdata"
+172.19.1.250:7001> get vmdatatest3
+-> Redirected to slot [2582] located at 172.19.1.250:7000
+"oktestdata"
+172.19.1.250:7000> get vmdatatest10
+-> Redirected to slot [12223] located at 172.19.1.250:7002
+(nil)
+172.19.1.250:7002> get vmdatatest9
+"oktestdata"
+172.19.1.250:7002> get vmdatatest2
+-> Redirected to slot [6711] located at 172.19.1.250:7001
+"oktestdata"
+=====
+172.19.1.250:7001> get datatest229
+-> Redirected to slot [11203] located at 172.19.1.250:7002
+"oktest"
+172.19.1.250:7002> get datatest3129
+-> Redirected to slot [621] located at 172.19.1.250:7000
+"oktest"
+172.19.1.250:7000> get datatest7129
+(nil)
+172.19.1.250:7000> get datatest5129
+-> Redirected to slot [9716] located at 172.19.1.250:7001
+"oktest"
+172.19.1.250:7001> get datatest4129
+-> Redirected to slot [4928] located at 172.19.1.250:7000
+"oktest"
+172.19.1.250:7000> get datatest3129
+"oktest"
+172.19.1.250:7000> get datatest3156
+-> Redirected to slot [10773] located at 172.19.1.250:7001
+"oktest"
+
+###########################################################
+#### redis-trib cluster 指令詳細
+###########################################################
+
+Usage: redis-trib <command> <options> <arguments ...>
+
+  create          	host1:port1 ... hostN:portN #<ok>
+						--replicas <arg>
+  check           	host:port #<ok>
+  info            		host:port #<ok>
+  fix             			host:port #<---------->
+						--timeout <arg>
+  reshard        	host:port #<ok>
+						--from <arg>
+						--to <arg>
+						--slots <arg>
+						--yes
+						--timeout <arg>
+						--pipeline <arg>
+  rebalance    	host:port #<ok>
+						--weight <arg>
+						--auto-weights
+						--use-empty-masters
+						--timeout <arg>
+						--simulate
+						--pipeline <arg>
+						--threshold <arg>
+  add-node        new_host:new_port existing_host:existing_port #<ok>
+						--slave
+						--master-id <arg>
+  del-node        	host:port node_id #<ok>
+  set-timeout    host:port milliseconds #<---------->
+  call            		host:port command arg arg .. arg
+  import          	host:port #<---------->
+						--from <arg>
+						--copy
+						--replace
+  help            (show this help)
+
+For check, fix, reshard, del-node, set-timeout you can specify the host and port of any working node in the cluster.
+
+### 簡易說明
+1. create：建立集群
+2. check：檢查集群
+3. info：查看集群資訊
+4. fix：修復集群
+5. reshard：線上遷移 slot
+6. rebalance：平衡集群節點 slot 數量
+7. add-node：將新節點加入集群
+8. del-node：從集群中刪除節點
+9. set-timeout：設置集群節點間 timeout 連接的超時時間
+10. call：在集群全部節點上執行命令
+11. import：將外部 redis 資料匯入集群
+
+# http://weizijun.cn/2016/01/08/redis%20cluster管理工具redis-trib-rb详解/
+
+### Cluster 指令
+A. 加到集群 - redis-trib add-node
+B. 自動完成遷移 - redis-trib reshard <host>:<port> --from <node-id> --to <node-id> --slots --yes
+
+###########################################################
+#### 寫啟動 redis script
+###########################################################
+
+# 路徑
+/etc/init.d/redis*
+
+# 啟動 redis server 
+# /etc/init.d/redis start
+su - redis -c "/etc/init.d/redis start"
+
+# 寫 Script 自己全部啟動
+sh -x /etc/init.d/redis_start_all
+===
+su - redis -c "/etc/init.d/redis_7000 start"
+su - redis -c "/etc/init.d/redis_7001 start"
+su - redis -c "/etc/init.d/redis_7002 start"
+su - redis -c "/etc/init.d/redis_7003 start"
+su - redis -c "/etc/init.d/redis_7004 start"
+su - redis -c "/etc/init.d/redis_7005 start"
+===
+
+# 讓 Redis slave 可以讀取資料
+指令：READONLY
+--- Available since 3.0.0. ___ Time complexity: O(1)
+--- Enables read queries for a connection to a Redis Cluster slave node.
+
+###########################################################
+#### 確認是否安裝
+###########################################################
+
+# 指令
+dpkg --get-selections | grep gtk
+
+# 導出到檔案
+dpkg --get-selections > installed_packages.txt
+
+gem list –local
+
+###########################################################
+#### Ubuntu 安裝 Samba
+###########################################################
+
+[1]安裝Samba
+sudo apt-get install samba
+
+[2]設定Samba 
+編輯 /etc/samba/smb.conf
+ 
+[tmp]
+   comment = Printer Drivers
+   path = /data/file
+   browseable = yes
+   read only = no
+   guest ok = yes
+   create mask = 0777
+ 
+[3]重新啟動 Samba Server
+sudo /etc/init.d/samba restart
+ 
+[4]在Windows設定
+在網路上的芳鄰圖示下按右鍵，
+選 "連線網路磁碟機"
+磁碟機: 任選
+資料夾: \\Ubuntu下所設IP\分享資料夾的名稱
+
+###########################################################
+#### ruby - Centos
+###########################################################
+
+# 安裝ruby
+# 集群管理工具（redis-trib.rb）是使用ruby腳本語言編寫的
+
+# Centos
+$ yum install ruby
+$ yum install rubygems
+
+###########################################################
+#### 建立 3台為主的 Cluster 集群
+###########################################################
+
+### 測試連線
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7001 PING
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7002 PING
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7003 PING
+PONG ---> 代表有連線成功
+
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7001 info Keyspace
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7002 info Keyspace
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7003 info Keyspace
+
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7001 info cluster
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7002 info cluster
+/opt/redis/redis-3.2.6/bin/redis-cli -p 7003 info cluster
+
+### Cluster 集群 [ 只有大於3個節點才能組成集群 ]
+參數說明：
+(1) create
+表示建立一個 redis cluster 集群。
+
+指令：
+redis-trib create 172.19.1.250:7001 172.19.1.250:7002 172.19.1.250:7003
+
+###########################################################
+#### 確認 cluster 狀態
+###########################################################
+
+### redis-trib.rb check 172.19.1.250:7001
+>>> Performing Cluster Check (using node 172.19.1.250:7001)
+M: d7964a7e7fa0a9f8b9e8c400ec069529f2915bc4 172.19.1.250:7001
+   slots:0-5460 (5461 slots) master
+   0 additional replica(s)
+M: 6031b39ce6a5d459296853c2f5ef0a8f08e43bad 172.19.1.250:7003
+   slots:10923-16383 (5461 slots) master
+   0 additional replica(s)
+M: de0b19e5e014d72a22a46e045d9fd8c918a272f3 172.19.1.250:7002
+   slots:5461-10922 (5462 slots) master
+   0 additional replica(s)
+[OK] All nodes agree about slots configuration.
+>>> Check for open slots...
+>>> Check slots coverage...
+[OK] All 16384 slots covered.
+
+### redis-trib.rb info 172.19.1.250:7001
+172.19.1.250:7001 (d7964a7e...) -> 0 keys | 5461 slots | 0 slaves.
+172.19.1.250:7003 (6031b39c...) -> 0 keys | 5461 slots | 0 slaves.
+172.19.1.250:7002 (de0b19e5...) -> 0 keys | 5462 slots | 0 slaves.
+[OK] 0 keys in 3 masters.
+0.00 keys per slot on average.
+
+###########################################################
+#### 跑三台M 並 測試資料
+###########################################################
+
+root@vm-ubuntu-1604-LTS:/data/file# ruby ./example.rb
+
+###
+
+127.0.0.1:7001> get okset1
+-> Redirected to slot [9445] located at 172.19.1.250:7002
+"1"
+172.19.1.250:7002> get okset2
+-> Redirected to slot [5254] located at 172.19.1.250:7001
+"2"
+172.19.1.250:7001> get okset3
+"3"
+172.19.1.250:7001> get okset4
+-> Redirected to slot [13376] located at 172.19.1.250:7003
+"4"
+172.19.1.250:7003> get okset5
+-> Redirected to slot [9313] located at 172.19.1.250:7002
+"5"
+172.19.1.250:7002> get okset6
+-> Redirected to slot [5122] located at 172.19.1.250:7001
+"6"
+172.19.1.250:7001> get okset7
+"7"
+172.19.1.250:7001> get okset8
+-> Redirected to slot [13772] located at 172.19.1.250:7003
+"8"
+
+###
+
+127.0.0.1:7001> get okset200
+"200"
+127.0.0.1:7001> get okset201
+-> Redirected to slot [7454] located at 172.19.1.250:7002
+"201"
+172.19.1.250:7002> get okset202
+-> Redirected to slot [11645] located at 172.19.1.250:7003
+"202"
+172.19.1.250:7003> get okset203
+"203"
+172.19.1.250:7003> get okset204
+-> Redirected to slot [3515] located at 172.19.1.250:7001
+"204"
+172.19.1.250:7001> get okset205
+-> Redirected to slot [7578] located at 172.19.1.250:7002
+"205"
+
+###
+
+root@vm-ubuntu-1604-LTS:/data/cluster# su - redis -c "/etc/init.d/redis_7001 stop"
+Stopping ...
+Redis stopped
+
+root@vm-ubuntu-1604-LTS:/data/cluster# redis-cli -c -p 7001
+Could not connect to Redis at 127.0.0.1:7001: Connection refused
+Could not connect to Redis at 127.0.0.1:7001: Connection refused
+
+root@vm-ubuntu-1604-LTS:/data/cluster# redis-cli -c -p 7002
+127.0.0.1:7002> CLUSTER INFO
+cluster_state:fail
+cluster_slots_assigned:16384
+cluster_slots_ok:10923
+cluster_slots_pfail:0
+cluster_slots_fail:5461
+cluster_known_nodes:3
+cluster_size:3
+cluster_current_epoch:3
+cluster_my_epoch:2
+cluster_stats_messages_sent:13517
+cluster_stats_messages_received:13219
+
+root@vm-ubuntu-1604-LTS:/data/cluster# redis-trib check 172.19.1.250:7002
+>>> Performing Cluster Check (using node 172.19.1.250:7002)
+M: de0b19e5e014d72a22a46e045d9fd8c918a272f3 172.19.1.250:7002
+   slots:5461-10922 (5462 slots) master
+   0 additional replica(s)
+M: 6031b39ce6a5d459296853c2f5ef0a8f08e43bad 172.19.1.250:7003
+   slots:10923-16383 (5461 slots) master
+   0 additional replica(s)
+[OK] All nodes agree about slots configuration.
+>>> Check for open slots...
+>>> Check slots coverage...
+[ERR] Not all 16384 slots are covered by nodes.
+
+###
+
+97) "okset196"
+127.0.0.1:7001>
+
+96) "okset108"
+127.0.0.1:7002>
+
+108) "okset87"
+127.0.0.1:7003>
+
+### redis.conf  設定檔
+
+# 默認是 yes，只要有節點的16384 slots 沒被全部覆蓋，整個集群就全部停止服務，所以一定要改為 no。
+cluster-require-full-coverage no
+
+###
+
+127.0.0.1:7002> CLUSTER INFO
+cluster_state:ok
+cluster_slots_assigned:16384
+cluster_slots_ok:10923
+cluster_slots_pfail:0
+cluster_slots_fail:5461
+cluster_known_nodes:3
+cluster_size:3
+cluster_current_epoch:3
+cluster_my_epoch:2
+cluster_stats_messages_sent:1825
+cluster_stats_messages_received:471
+127.0.0.1:7002> SELECT 0
+OK
+127.0.0.1:7002> get okset200
+-> Redirected to slot [3391] located at 172.19.1.250:7001
+Could not connect to Redis at 172.19.1.250:7001: Connection refused
+Could not connect to Redis at 172.19.1.250:7001: Connection refused
+not connected> get okset202
+Could not connect to Redis at 172.19.1.250:7001: Connection refused
+not connected> get okset201
+Could not connect to Redis at 172.19.1.250:7001: Connection refused
+not connected> exit
+root@vm-ubuntu-1604-LTS:/data/cluster# redis-cli -c -p 7003
+127.0.0.1:7003> SELECT 0
+OK
+127.0.0.1:7003> get okset201
+-> Redirected to slot [7454] located at 172.19.1.250:7002
+"201"
+172.19.1.250:7002> get okset200
+-> Redirected to slot [3391] located at 172.19.1.250:7001
+Could not connect to Redis at 172.19.1.250:7001: Connection refused
+Could not connect to Redis at 172.19.1.250:7001: Connection refused
+not connected> exit
+
+###########################################################
+#### 跑四台 ( 2M +2S )
+###########################################################
+
+redis-trib create --replicas 1 172.19.1.250:7001 172.19.1.250:7002 172.19.1.250:7003 172.19.1.250:7004
+
+root@vm-ubuntu-1604-LTS:/data/cluster# redis-trib create --replicas 1 172.19.1.250:7001 172.19.1.250:7002 172.19.1.250:7003 172.19.1.250:7004
+>>> Creating cluster
+*** ERROR: Invalid configuration for cluster creation.
+*** Redis Cluster requires at least 3 master nodes.
+*** This is not possible with 4 nodes and 1 replicas per node.
+*** At least 6 nodes are required.
+
+結果：無法啟動 cluster
+
+###########################################################
+#### 跑四台 ( 4M )
+###########################################################
+
+root@vm-ubuntu-1604-LTS:/data/cluster# redis-trib create 172.19.1.250:7001 172.19.1.250:7002 172.19.1.250:7003 172.19.1.250:7004
+>>> Creating cluster
+>>> Performing hash slots allocation on 4 nodes...
+Using 4 masters:
+172.19.1.250:7001
+172.19.1.250:7002
+172.19.1.250:7003
+172.19.1.250:7004
+M: 6478337aae977f305637a1ab51969ee133eefd1e 172.19.1.250:7001
+   slots:0-4095 (4096 slots) master
+M: 9626e9b300e500ab093a8aaec6826c897217a6c7 172.19.1.250:7002
+   slots:4096-8191 (4096 slots) master
+M: 6dddbf97ab4b9aa2ffa80d04314b6a92fcf8a42a 172.19.1.250:7003
+   slots:8192-12287 (4096 slots) master
+M: 48298c0e38e24ad88f397665fbeb8b3620162148 172.19.1.250:7004
+   slots:12288-16383 (4096 slots) master
+Can I set the above configuration? (type 'yes' to accept): yes
+>>> Nodes configuration updated
+>>> Assign a different config epoch to each node
+>>> Sending CLUSTER MEET messages to join the cluster
+Waiting for the cluster to join..
+>>> Performing Cluster Check (using node 172.19.1.250:7001)
+M: 6478337aae977f305637a1ab51969ee133eefd1e 172.19.1.250:7001
+   slots:0-4095 (4096 slots) master
+   0 additional replica(s)
+M: 9626e9b300e500ab093a8aaec6826c897217a6c7 172.19.1.250:7002
+   slots:4096-8191 (4096 slots) master
+   0 additional replica(s)
+M: 6dddbf97ab4b9aa2ffa80d04314b6a92fcf8a42a 172.19.1.250:7003
+   slots:8192-12287 (4096 slots) master
+   0 additional replica(s)
+M: 48298c0e38e24ad88f397665fbeb8b3620162148 172.19.1.250:7004
+   slots:12288-16383 (4096 slots) master
+   0 additional replica(s)
+[OK] All nodes agree about slots configuration.
+>>> Check for open slots...
+>>> Check slots coverage...
+[OK] All 16384 slots covered.
+
+結果：可啟動 cluster
+
+###########################################################
+#### 剩一台M時
+###########################################################
+
+127.0.0.1:7003> get okset73
+(error) CLUSTERDOWN The cluster is down
+127.0.0.1:7003> exit
+root@vm-ubuntu-1604-LTS:/data/cluster# su - redis -c "/etc/init.d/redis_7002 start"
+Starting Redis server...
+root@vm-ubuntu-1604-LTS:/data/cluster# /opt/redis/redis-3.2.6/bin/redis-cli -c -p 7002
+127.0.0.1:7002> SELECT 0
+OK
+127.0.0.1:7002> get okset73
+-> Redirected to slot [11632] located at 172.19.1.250:7003
+"73"
+172.19.1.250:7003> get okset71
+-> Redirected to slot [3378] located at 172.19.1.250:7001
+Could not connect to Redis at 172.19.1.250:7001: Connection refused
+Could not connect to Redis at 172.19.1.250:7001: Connection refused
+not connected> get okset72
+Could not connect to Redis at 172.19.1.250:7001: Connection refused
+not connected> get okset73
+Could not connect to Redis at 172.19.1.250:7001: Connection refused
+
+###########################################################
+#### 修改參數檔案
+###########################################################
+
+find 7002/redis.conf | xargs -i sed -i 's/7001/7002/g' {}
+find 7003/redis.conf | xargs -i sed -i 's/7001/7003/g' {}
+find 7004/redis.conf | xargs -i sed -i 's/7001/7004/g' {}
+find 7005/redis.conf | xargs -i sed -i 's/7001/7005/g' {}
+find 7006/redis.conf | xargs -i sed -i 's/7001/7006/g' {}
+
+find 7011/redis.conf | xargs -i sed -i 's/7001/7011/g' {}
+find 7012/redis.conf | xargs -i sed -i 's/7001/7012/g' {}
+find 7013/redis.conf | xargs -i sed -i 's/7001/7013/g' {}
+find 7014/redis.conf | xargs -i sed -i 's/7001/7014/g' {}
+find 7015/redis.conf | xargs -i sed -i 's/7001/7015/g' {}
+find 7016/redis.conf | xargs -i sed -i 's/7001/7016/g' {}
+
+find redis_7011 | xargs -i sed -i 's/7001/7011/g' {}
+find redis_7012 | xargs -i sed -i 's/7002/7012/g' {}
+find redis_7013 | xargs -i sed -i 's/7003/7013/g' {}
+find redis_7014 | xargs -i sed -i 's/7004/7014/g' {}
+find redis_7015 | xargs -i sed -i 's/7005/7015/g' {}
+find redis_7016 | xargs -i sed -i 's/7006/7016/g' {}
+
+###########################################################
+#### Cluster 新增node（Adding a new node）
+###########################################################
+
+ps. 在線上服務的主機添加 slave 時，需要轉儲整個 master 的資料，並傳遞到slave，再由 slave 載入 rdb 文件到記憶體，rdb 傳輸過程中 master 可能無法提供服務，整個過程消耗大量 IO，要小心操作。
+
+### 指令
+add-node    new_host:new_port existing_host:existing_port
+          --slave
+          --master-id <arg>
+		  
+# add-node有兩個可選參數
+--slave：設置該參數，則新節點以slave的角色加入cluster。
+--master-id：這個參數需要設置了--slave才能生效，--master-id用來指定新節點的主節點。如果不設置該參數，則會隨機為節點選擇主節點。
+
+### 未正確設定參數
+redis-trib add-node 172.19.1.250:7011
+root@vm-ubuntu-1604-LTS:/data# redis-trib add-node 172.19.1.250:7011
+--> [ERR] Wrong number of arguments for specified sub command
+
+### 加入集群後變為 master <但需設定 slots>
+redis-trib add-node 172.19.1.250:7011 172.19.1.250:7001
+
+# logs
+root@vm-ubuntu-1604-LTS:/data# redis-trib add-node 172.19.1.250:7011 172.19.1.250:7001
+>>> Adding node 172.19.1.250:7011 to cluster 172.19.1.250:7001
+>>> Performing Cluster Check (using node 172.19.1.250:7001)
+M: 22fecddb3d57f85867b630da45ee0bd6f9ffa91b 172.19.1.250:7001
+   slots:0-5460 (5461 slots) master
+   1 additional replica(s)
+M: 7629d6b142016f6ccd105f448203a34d895b003f 172.19.1.250:7003
+   slots:10923-16383 (5461 slots) master
+   1 additional replica(s)
+S: 4ff5e100cf2daba97b1e0f2f6dddb3d4048381c1 172.19.1.250:7004
+   slots: (0 slots) slave
+   replicates 22fecddb3d57f85867b630da45ee0bd6f9ffa91b
+S: 122342ef615bc476317c5e52d27c7374644256c0 172.19.1.250:7006
+   slots: (0 slots) slave
+   replicates 7629d6b142016f6ccd105f448203a34d895b003f
+M: e4a2fa5c65d58687e47002b4bf8b3e7533e2a0fa 172.19.1.250:7002
+   slots:5461-10922 (5462 slots) master
+   1 additional replica(s)
+S: cfdca912fbb37924418c8fecb16fa91072ed7df0 172.19.1.250:7005
+   slots: (0 slots) slave
+   replicates e4a2fa5c65d58687e47002b4bf8b3e7533e2a0fa
+[OK] All nodes agree about slots configuration.
+>>> Check for open slots...
+>>> Check slots coverage...
+[OK] All 16384 slots covered.
+>>> Send CLUSTER MEET to node 172.19.1.250:7011 to make it join the cluster.
+[OK] New node added correctly.
+#
+root@vm-ubuntu-1604-LTS:/data# redis-trib.rb check 172.19.1.250:7001
+>>> Performing Cluster Check (using node 172.19.1.250:7001)
+M: 22fecddb3d57f85867b630da45ee0bd6f9ffa91b 172.19.1.250:7001
+   slots:0-5460 (5461 slots) master
+   1 additional replica(s)
+M: d4742a9093e0d1d76b819440b2ad57b11ba89da7 172.19.1.250:7011
+   slots: (0 slots) master
+   0 additional replica(s)
+M: 7629d6b142016f6ccd105f448203a34d895b003f 172.19.1.250:7003
+   slots:10923-16383 (5461 slots) master
+   1 additional replica(s)
+S: 4ff5e100cf2daba97b1e0f2f6dddb3d4048381c1 172.19.1.250:7004
+   slots: (0 slots) slave
+   replicates 22fecddb3d57f85867b630da45ee0bd6f9ffa91b
+S: 122342ef615bc476317c5e52d27c7374644256c0 172.19.1.250:7006
+   slots: (0 slots) slave
+   replicates 7629d6b142016f6ccd105f448203a34d895b003f
+M: e4a2fa5c65d58687e47002b4bf8b3e7533e2a0fa 172.19.1.250:7002
+   slots:5461-10922 (5462 slots) master
+   1 additional replica(s)
+S: cfdca912fbb37924418c8fecb16fa91072ed7df0 172.19.1.250:7005
+   slots: (0 slots) slave
+   replicates e4a2fa5c65d58687e47002b4bf8b3e7533e2a0fa
+[OK] All nodes agree about slots configuration.
+>>> Check for open slots...
+>>> Check slots coverage...
+[OK] All 16384 slots covered.
+#
+
+### 預設加入新節點就是為 master <不指定為slave>
+
+### 指令 - 新 node 指定為 slave
+redis-trib add-node --slave --master-id e4a2fa5c65d58687e47002b4bf8b3e7533e2a0fa 172.19.1.250:7012 172.19.1.250:7002
+
+#root@vm-ubuntu-1604-LTS:/data# redis-trib add-node --slave --master-id e4a2fa5c65d58687e47002b4bf8b3e7533e2a0fa 172.19.1.250:7012 172.19.1.250:7002
+>>> Adding node 172.19.1.250:7012 to cluster 172.19.1.250:7002
+>>> Performing Cluster Check (using node 172.19.1.250:7002)
+M: e4a2fa5c65d58687e47002b4bf8b3e7533e2a0fa 172.19.1.250:7002
+   slots:5461-10922 (5462 slots) master
+   1 additional replica(s)
+S: cfdca912fbb37924418c8fecb16fa91072ed7df0 172.19.1.250:7005
+   slots: (0 slots) slave
+   replicates e4a2fa5c65d58687e47002b4bf8b3e7533e2a0fa
+S: 4ff5e100cf2daba97b1e0f2f6dddb3d4048381c1 172.19.1.250:7004
+   slots: (0 slots) slave
+   replicates 22fecddb3d57f85867b630da45ee0bd6f9ffa91b
+S: 122342ef615bc476317c5e52d27c7374644256c0 172.19.1.250:7006
+   slots: (0 slots) slave
+   replicates 7629d6b142016f6ccd105f448203a34d895b003f
+M: 22fecddb3d57f85867b630da45ee0bd6f9ffa91b 172.19.1.250:7001
+   slots:0-5460 (5461 slots) master
+   1 additional replica(s)
+M: d4742a9093e0d1d76b819440b2ad57b11ba89da7 172.19.1.250:7011
+   slots: (0 slots) master
+   0 additional replica(s)
+M: 7629d6b142016f6ccd105f448203a34d895b003f 172.19.1.250:7003
+   slots:10923-16383 (5461 slots) master
+   1 additional replica(s)
+[OK] All nodes agree about slots configuration.
+>>> Check for open slots...
+>>> Check slots coverage...
+[OK] All 16384 slots covered.
+>>> Send CLUSTER MEET to node 172.19.1.250:7012 to make it join the cluster.
+Waiting for the cluster to join.
+>>> Configure node as replica of 172.19.1.250:7002.
+[OK] New node added correctly.
+#
+root@vm-ubuntu-1604-LTS:/data# redis-cli -c -p 7002 info replication
+# Replication
+role:master
+connected_slaves:2
+slave0:ip=172.19.1.250,port=7005,state=online,offset=20128,lag=1
+slave1:ip=172.19.1.250,port=7012,state=online,offset=20128,lag=1
+master_repl_offset:20128
+repl_backlog_active:1
+repl_backlog_size:1048576
+repl_backlog_first_byte_offset:2
+repl_backlog_histlen:20127
+#
+
+### 另一種方式指定新 node 為 slave
+
+# 1. 登入該新的節點 node
+redis-cli -c -p 7013
+
+# 2. 設置master給新節點  <指令 -> cluster replicate 對應 master 的 node-id>
+cluster replicate 7629d6b142016f6ccd105f448203a34d895b003f
+
+### 查詢 ID
+root@vm-ubuntu-1604-LTS:/data/cluster# redis-trib check 172.19.1.250:7001|grep M
+M: 22fecddb3d57f85867b630da45ee0bd6f9ffa91b 172.19.1.250:7001
+M: 7629d6b142016f6ccd105f448203a34d895b003f 172.19.1.250:7003
+M: 9753fdac0dd551c87551b6a922e4046c188afcd0 172.19.1.250:7014
+M: d4742a9093e0d1d76b819440b2ad57b11ba89da7 172.19.1.250:7011
+M: 039dcf717b46dc772b2d516d022877ca03966a11 172.19.1.250:7013
+M: e4a2fa5c65d58687e47002b4bf8b3e7533e2a0fa 172.19.1.250:7002
+### 新增後
+root@vm-ubuntu-1604-LTS:/data/cluster# redis-cli -p 7003 info replication
+# Replication
+role:master
+connected_slaves:2
+slave0:ip=172.19.1.250,port=7006,state=online,offset=86719985,lag=0
+slave1:ip=172.19.1.250,port=7013,state=online,offset=86719985,lag=0
+master_repl_offset:86719985
+repl_backlog_active:1
+repl_backlog_size:1048576
+repl_backlog_first_byte_offset:85671410
+repl_backlog_histlen:1048576
+###
+root@vm-ubuntu-1604-LTS:/data/cluster# redis-trib check 172.19.1.250:7001|grep M
+M: 22fecddb3d57f85867b630da45ee0bd6f9ffa91b 172.19.1.250:7001
+M: 7629d6b142016f6ccd105f448203a34d895b003f 172.19.1.250:7003
+M: 9753fdac0dd551c87551b6a922e4046c188afcd0 172.19.1.250:7014
+M: d4742a9093e0d1d76b819440b2ad57b11ba89da7 172.19.1.250:7011
+M: e4a2fa5c65d58687e47002b4bf8b3e7533e2a0fa 172.19.1.250:7002
+
+root@vm-ubuntu-1604-LTS:/data/cluster# redis-trib check 172.19.1.250:7001|grep S
+S: 122342ef615bc476317c5e52d27c7374644256c0 172.19.1.250:7006
+S: cfdca912fbb37924418c8fecb16fa91072ed7df0 172.19.1.250:7005
+S: 244ebcd1eb0897aa70a71bff8b613fe18b68713e 172.19.1.250:7012
+S: 039dcf717b46dc772b2d516d022877ca03966a11 172.19.1.250:7013
+S: 4ff5e100cf2daba97b1e0f2f6dddb3d4048381c1 172.19.1.250:7004
+###
+
+###########################################################
+#### Cluster 重新分片操作（Resharding the cluster）
+###########################################################
+
+# 線上直接移動 slot 指令 ( reshard )
+reshard 命令可線上把集群的一些slots從集群原來slot負責節點遷移到新的節點，利用reshard可以完成集群的在線橫向擴容和縮容。
+
+# reshard 指令
+reshard         host:port
+						--from <arg>
+						--to <arg>
+						--slots <arg>
+						--yes
+						--timeout <arg>
+						--pipeline <arg>
+						
+host:port：這個是必用參數，用於從一個節點獲取整個集群資訊，相當於獲取集群資訊的入口。
+
+						--from <arg>：需要從那些源節點上遷移slot，可從多個源節點完成遷移，以逗號隔開，傳遞的是節點的節點ID，還可以直接傳遞--from all，這樣源節點就是集群的所有節點，不傳遞該參數的話，則會在遷移過程中提示用戶輸入。
+						--to <arg>：slot需要遷移的目的節點的節點id，目的節點只能填寫一個，不傳遞該參數的話，則會在遷移過程中提示用戶輸入。
+						--slots <arg>：需要遷移的slot數，不傳遞該參數的話，則會在移動過程中提示用戶輸入。
+						--yes：設置該參數，可以在執行reshard計劃的時候，提示用戶輸入是確認後再執行reshard。
+						--timeout <arg>：設置migrate命令的超時時間。
+						--pipeline <arg>：定義cluster getkeysinslot命令一次取出的鍵數，不傳的話使用默認值為10。
+						
+### 指令 <預計遷移4000>
+redis-trib reshard --pipeline 10 --yes --from all --to d4742a9093e0d1d76b819440b2ad57b11ba89da7 --slots 1000 172.19.1.250:7001
+redis-trib reshard --pipeline 100 --from all --to d4742a9093e0d1d76b819440b2ad57b11ba89da7 --slots 1000 172.19.1.250:7002
+redis-trib reshard --pipeline 500 --from all --to d4742a9093e0d1d76b819440b2ad57b11ba89da7 --slots 2000 172.19.1.250:7003
+
+#####
+
+## 執行遷移前
+root@vm-ubuntu-1604-LTS:/data/file/redis-rb-cluster-master# /opt/redis/redis-3.2.6/bin/redis-cli -p 7001 info Keyspace
+# Keyspace
+db0:keys=799779,expires=0,avg_ttl=0
+root@vm-ubuntu-1604-LTS:/data/file/redis-rb-cluster-master# /opt/redis/redis-3.2.6/bin/redis-cli -p 7002 info Keyspace
+# Keyspace
+db0:keys=800412,expires=0,avg_ttl=0
+root@vm-ubuntu-1604-LTS:/data/file/redis-rb-cluster-master# /opt/redis/redis-3.2.6/bin/redis-cli -p 7003 info Keyspace
+# Keyspace
+db0:keys=799811,expires=0,avg_ttl=0
+
+##
+root@vm-ubuntu-1604-LTS:/data/file/redis-rb-cluster-master# /opt/redis/redis-3.2.6/bin/redis-cli -p 7011 info Keyspace
+# Keyspace
+root@vm-ubuntu-1604-LTS:/data/file/redis-rb-cluster-master# /opt/redis/redis-3.2.6/bin/redis-cli -p 7012 info Keyspace
+# Keyspace
+db0:keys=800412,expires=0,avg_ttl=0
+##
+
+## 執行遷移後，為什麼 7012 自己變成 7011 的 slave ??? ---> 會因為是指定了每一個master都要一個以上的slave
+## 原先結構為 7002 有兩組  slaves [ 7005+7012 ]
+root@vm-ubuntu-1604-LTS:/data/cluster# /opt/redis/redis-3.2.6/bin/redis-cli -p 7011 info Keyspace
+# Keyspace
+db0:keys=146119,expires=0,avg_ttl=0
+root@vm-ubuntu-1604-LTS:/data/cluster# /opt/redis/redis-3.2.6/bin/redis-cli -p 7012 info Keyspace
+# Keyspace
+db0:keys=146119,expires=0,avg_ttl=0
+#
+
+## 執行遷移後
+root@vm-ubuntu-1604-LTS:/data/cluster# redis-trib check 172.19.1.250:7001
+>>> Performing Cluster Check (using node 172.19.1.250:7001)
+M: 22fecddb3d57f85867b630da45ee0bd6f9ffa91b 172.19.1.250:7001
+   slots:1332-5460 (4129 slots) master
+   1 additional replica(s)
+M: d4742a9093e0d1d76b819440b2ad57b11ba89da7 172.19.1.250:7011
+   slots:0-1331,5461-6794,10923-12255 (3999 slots) master
+   1 additional replica(s)
+M: 7629d6b142016f6ccd105f448203a34d895b003f 172.19.1.250:7003
+   slots:12256-16383 (4128 slots) master
+   1 additional replica(s)
+S: 4ff5e100cf2daba97b1e0f2f6dddb3d4048381c1 172.19.1.250:7004
+   slots: (0 slots) slave
+   replicates 22fecddb3d57f85867b630da45ee0bd6f9ffa91b
+S: 122342ef615bc476317c5e52d27c7374644256c0 172.19.1.250:7006
+   slots: (0 slots) slave
+   replicates 7629d6b142016f6ccd105f448203a34d895b003f
+M: e4a2fa5c65d58687e47002b4bf8b3e7533e2a0fa 172.19.1.250:7002
+   slots:6795-10922 (4128 slots) master
+   1 additional replica(s)
+S: 244ebcd1eb0897aa70a71bff8b613fe18b68713e 172.19.1.250:7012
+   slots: (0 slots) slave
+   replicates d4742a9093e0d1d76b819440b2ad57b11ba89da7
+S: cfdca912fbb37924418c8fecb16fa91072ed7df0 172.19.1.250:7005
+   slots: (0 slots) slave
+   replicates e4a2fa5c65d58687e47002b4bf8b3e7533e2a0fa
+[OK] All nodes agree about slots configuration.
+>>> Check for open slots...
+>>> Check slots coverage...
+[OK] All 16384 slots covered.
+##
+
+### 若是不輸入任何參數時要選填入的資料
+
+# 可以指定任意一個節點（M / S 均可）
+redis-trib reshard 172.19.1.250:7011
+# 指定移動多少個slot
+How many slots do you want to move (from 1 to 16384)? 50  
+# 指定接收的節點 <給7001>
+What is the receiving node ID? 22fecddb3d57f85867b630da45ee0bd6f9ffa91b
+# 指定取槽（哈希槽）的節點
+# 第一種ALL，除接收節點外，其他節點平均分配取
+# 第二種指定節點ID，輸入完結束
+Please enter all the source node IDs.  
+  Type 'all' to use all the nodes as source nodes for the hash slots.  
+  Type 'done' once you entered all the source nodes IDs.  
+Source node #1:538274656289381c0e488e95aaf6cd30731457eb  <指定從某一個 node 為來源>
+Source node #2:done  
+##
+
+redis-cli -c -p 7001 info Keyspace
+redis-cli -c -p 7002 info Keyspace
+redis-cli -c -p 7003 info Keyspace
+redis-cli -c -p 7004 info Keyspace
+redis-cli -c -p 7005 info Keyspace
+redis-cli -c -p 7006 info Keyspace
+redis-cli -c -p 7011 info Keyspace
+redis-cli -c -p 7012 info Keyspace
+
+redis-cli -c -p 7001 info replication|grep role
+redis-cli -c -p 7002 info replication|grep role
+redis-cli -c -p 7003 info replication|grep role
+redis-cli -c -p 7004 info replication|grep role
+redis-cli -c -p 7005 info replication|grep role
+redis-cli -c -p 7006 info replication|grep role
+redis-cli -c -p 7011 info replication|grep role
+redis-cli -c -p 7012 info replication|grep role
+
+redis-cli -c -h 172.30.39.251 -p 6379 info replication|grep role
+redis-cli -c -h 172.30.39.252 -p 6379 info replication|grep role
+redis-cli -c -h 172.30.39.253 -p 6379 info replication|grep role
+
+redis-cli -c -h 172.30.39.251 -p 6379 info Keyspace
+redis-cli -c -h 172.30.39.252 -p 6379 info Keyspace
+redis-cli -c -h 172.30.39.253 -p 6379 info Keyspace
+
+###########################################################
+#### Cluster 移除node（Removing a node）
+###########################################################
+
+### 指令
+redis-trib del-node ip:port '<node-id>' 
+
+### 移除 slave <7013+7014> [移除後會連服務一起關閉 !!!]
+redis-trib del-node 172.19.1.250:7013 '039dcf717b46dc772b2d516d022877ca03966a11'
+redis-trib del-node 172.19.1.250:7014 '9753fdac0dd551c87551b6a922e4046c188afcd0'
+
+S: 039dcf717b46dc772b2d516d022877ca03966a11 172.19.1.250:7013
+S: 9753fdac0dd551c87551b6a922e4046c188afcd0 172.19.1.250:7014
+
+# logs
+root@vm-ubuntu-1604-LTS:/data/cluster# redis-trib del-node 172.19.1.250:7013 '039dcf717b46dc772b2d516d022877ca03966a11'
+>>> Removing node 039dcf717b46dc772b2d516d022877ca03966a11 from cluster 172.19.1.250:7013
+>>> Sending CLUSTER FORGET messages to the cluster...
+>>> SHUTDOWN the node.
+#
+
+# 再次打開服務後並不會自己加入到 Cluster 內，但是會記得自己是什麼角色 (關閉前的狀態) [若進行資料寫入或傳輸也都會正常執行]
+
+### 移除 master
+# 必須要將 slot 全部分配給其他節點 node
+
+redis-trib reshard 172.19.1.250:7011
+# 記得要輸入來源的 node ID 而不是填入 all
+
+redis-trib del-node 172.19.1.250:7011 'd4742a9093e0d1d76b819440b2ad57b11ba89da7'
+
+M: d4742a9093e0d1d76b819440b2ad57b11ba89da7 172.19.1.250:7011
+
+###########################################################
+#### rebalance 平衡集群
+###########################################################
+
+# rebalance 
+根據用戶傳入的參數平衡集群節點的slot數量，rebalance 功能非常強大，可以傳入的參數很多，以下是rebalance的參數列表和命令示例。
+
+rebalance       host:port
+                --weight <arg>
+                --auto-weights
+                --threshold <arg>
+                --use-empty-masters
+                --timeout <arg>
+                --simulate
+                --pipeline <arg>
+
+host:port：這個是必傳參數，用於從一個節點獲取整個集群資訊，相當於獲取集群資訊的入口。
+				--weight <arg>：節點的權重，格式為node_id = weight，如果需要為多個節點分配權重的話，需要添加多個--weight <arg>參數，即--weight b31e3a2e=5 --weight 60b8e3a1=5，node_id可為節點名稱的前綴，只要保證前綴位數能唯一區分該節點即可。沒有傳遞 - 重量的節點的權重默認為1。
+				--auto-weights：這個參數在rebalance流程中並未用到。
+				--threshold <arg>：只有節點需要遷移的槽閾值超過閾值，才會執行rebalance操作。具體計算方法可以參考下面rebalance命令流程的第四步。
+				--use-empty-masters：rebalance是否考慮沒有節點的master，默認沒有分配slot節點的master是不參與rebalance的，設置--use-empty-masters可以讓沒有分配槽的節點參與rebalance。
+				--timeout <arg>：設置migrate命令的超時時間。
+				--simulate：設置該參數，可以模擬rebalance操作，提示用戶會遷移哪些slot，而不真正執行遷移操作。
+				--pipeline <arg>：與reshar的管線參數一樣，定義cluster getkeysinslot命令一次取出的關鍵數字，不傳的話使用默認值為10。
+
+# rebalance 指令
+redis-trib rebalance --threshold 1 --weight b31e3a2e=5 --weight 60b8e3a1=5 --use-empty-masters  --simulate 10.180.157.199:6379
+redis-trib rebalance --threshold 1 --use-empty-masters --simulate 172.19.1.250:7001
+redis-trib rebalance --threshold 1 --use-empty-masters  172.19.1.250:7001
+
+###
+root@vm-ubuntu-1604-LTS:/data/cluster# redis-trib rebalance --threshold 1 --use-empty-masters  172.19.1.250:7001
+>>> Performing Cluster Check (using node 172.19.1.250:7001)
+[OK] All nodes agree about slots configuration.
+>>> Check for open slots...
+>>> Check slots coverage...
+[OK] All 16384 slots covered.
+>>> Rebalancing across 3 nodes. Total weight = 3
+Moving 2703 slots from 172.19.1.250:7001 to 172.19.1.250:7002
+Moving 31 slots from 172.19.1.250:7001 to 172.19.1.250:7003
+###
+root@vm-ubuntu-1604-LTS:/data/cluster# redis-cli -p 7003 info Keyspace
+# Keyspace
+db0:keys=803835,expires=0,avg_ttl=0
+root@vm-ubuntu-1604-LTS:/data/cluster# redis-cli -p 7002 info Keyspace
+# Keyspace
+db0:keys=803937,expires=0,avg_ttl=0
+root@vm-ubuntu-1604-LTS:/data/cluster# redis-cli -p 7001 info Keyspace
+# Keyspace
+db0:keys=804231,expires=0,avg_ttl=0
+###
+
+###########################################################
+#### 建立不對稱性的 cluster
+###########################################################
+
+Redis 集群實現了一個叫做備份遷移（replica migration）的概念，以提高系統的可用性。
+
+一個候選方案就是在 cluster 中建立不對稱性，然後讓 cluster 佈局時不時地自動變化。
+例如，假設集群有三個主節點A，B，C。節點 A 和 B 都各有一個從節點，A1 和 B1。節點 C 有兩個從節點：C1 和C2。
+備份遷移是從節點自動重構的過程，為了遷移到一個沒有可工作從節點的主節點上。
+
+在上面提到的例子中，備份遷移過程如下：
+1. 主節點 A 失效。A1 被提升為主節點。
+2. 節點 C2 遷移成為節點 A1 的從節點，要不然 A1 就沒有任何從節點。
+3. 三個小時後節點 A1 也失效了。
+4. 節點 C2 被提升為取代 A1 的新主節點。
+5. 集群仍然能繼續正常工作。
+
+###########################################################
+#### 指令集
+###########################################################
+
+### 集群
+CLUSTER INFO 輸出集群的資訊
+CLUSTER NODES 列出集群當前已知的所有節點（node），以及這些節點的相關資訊。
+
+### 節點
+CLUSTER MEET <ip> <port> 將 ip 和 port 所指定的節點添加到集群當中，讓它成為集群的一份子。
+CLUSTER FORGET <node_id> 從集群中移除 node_id 指定的節點。
+CLUSTER REPLICATE <node_id> 將當前節點設置為 node_id 指定的節點的從節點。
+CLUSTER SAVECONFIG 將節點的配置文件保存到硬碟裡面。
+
+### 槽(slot)
+CLUSTER ADDSLOTS <slot> [slot ...] 將一個或多個槽（slot）指派（assign）給當前節點。
+CLUSTER DELSLOTS <slot> [slot ...] 移除一個或多個槽對當前節點的指派。
+CLUSTER FLUSHSLOTS 移除指派給當前節點的所有槽，讓當前節點變成一個沒有指派任何槽的節點。
+CLUSTER SETSLOT <slot> NODE <node_id> 將槽 slot 指派給 node_id 指定的節點，如果槽已經指派給另一個節點，那麼先讓另一個節點刪除該槽，然後再進行指派。
+CLUSTER SETSLOT <slot> MIGRATING <node_id> 將本節點的槽 slot 遷移到 node_id 指定的節點中。
+CLUSTER SETSLOT <slot> IMPORTING <node_id> 從 node_id 指定的節點中導入槽 slot 到本節點。
+CLUSTER SETSLOT <slot> STABLE 取消對槽 slot 的導入（import）或者遷移（migrate）。
+
+### 鍵
+CLUSTER KEYSLOT <key> 計算鍵 key 應該被放置在哪個槽上。
+CLUSTER COUNTKEYSINSLOT <slot> 返回槽 slot 目前包含的鍵值對數量。
+CLUSTER GETKEYSINSLOT <slot> <count> 返回 count 個 slot 槽中的鍵。
+
+###########################################################
+#### Keepalived + HAproxy 實現redis的高可用負載均衡
+###########################################################
+
+### Keepalived
+Keepalived是一個類似於layer3,4&5交換機制的軟件，也就是我們平時說的第3層、第4層和第5層交換。
+
+Keepalived的作用是檢測web服務器的狀態，如果有一台web服務器死機，或工作出現故障，
+Keepalived將檢測到並將有故障的web服務器從系統中剔除，當web服務器工作正常後Keepalived自動將web服務器加入到服務器群中，
+這些工作全部自動完成，不需要人工干涉，需要人工做的只是修復故障的web服務器。
+
+### HAProxy
+HAProxy 提供高可用性、負載均衡以及基於TCP和HTTP應用的代理，支持虛擬主機，它是免費、快速並且可靠的一種解決方案。
+HAProxy 特別適用於那些負載特大的web站點，這些站點通常又需要會話保持或七層處理。 
+HAProxy 運行在當前的硬體上，完全可以支持數以萬計的並發連接。並且它的運行模式使得它可以很簡單安全的整合進您當前的架構中，同時可以保護你的web服務器不被暴露到網絡上。
+
+### Keepalived + HAproxy 
+利用HAproxy對多台redis服務器進行負載，然後用Keepalived對HAproxy進行監控：
+
+（主）服務器A：192.168.4.143 （從）服務器B：192.168.4.126 
+
+A上安裝redis(主)、reids-slave1(從)、redis-slave2(從)、HAproxy、Keepalived
+B上安裝redis-slave3（從）、redis-slave4（從）、HAproxy、Keepalived 
+
+Keepalived監控A、B上的HAproxy，利用Keepalived的VIP漂移技術，若A、B上的HAprox都工作正常，
+則VIP與優先級別高的服務器（主服務器）綁定，當主服務器當掉時，則與從服務器綁定，而VIP則是暴露給外部訪問的ip；
+
+HAproxy利用Keepalived生產的VIP對多台redis（從）進行讀負載，當某台redis當掉，則將其移除，回復後加入集群。
+
+###########################################################
+##### [注意] 在 cluster 模式下無法啟動 slaveof 功能
+###########################################################
+
+root@rdb0t-2:/etc/scripts# /opt/redis/redis-3.2.6/bin/redis-cli slaveof 172.30.39.251 6379
+(error) ERR SLAVEOF not allowed in cluster mode.
+
+###########################################################
+#### Keepalived HA 切換設定
+###########################################################
+
+### 安裝
+
+apt-get install keepalived
+
+### 設定 /etc/hosts
+
+vi /etc/hosts
+#for redis
+172.16.98.107 rdb0t-1
+172.16.99.107 rdb0t-2
+
+### 在rdb0t-1 & rdb0t-2上建立keepalived.conf參數檔
+mkdir /etc/scripts
+mkdir /etc/keepalived
+
+cd /etc/keepalived
+mv keepalived.conf bak.keepalived.conf
+
+### 設定keepalived.conf
+
+## [ rdb0t-1 ]  注意：HOST-1須設定nopreempt
+vi /etc/keepalived/keepalived.conf
+
+! Configuration File for keepalived
+global_defs {
+    lvs_id LVS_rdb0t
+}
+
+vrrp_script chk_redis {
+        script "/etc/scripts/redis_check.sh"
+        interval 5
+        timeout 3
+        fall 2
+}
+
+vrrp_instance VI_rdb0t-1 {			        -- vrrp_instance名字必須相同
+        state BACKUP                     -- 設置為BACKUP
+        nopreempt                        -- 設置為不搶佔，此參數只能設置在state為BACKUP的主機上，這個主機的priority要比另一台高
+        interface ens3                   -- 監控網卡
+        virtual_router_id 50             -- 這裡設置VRID，這裡非常重要，相同的VRID為一組HA，避免影響線上，測試時請設200~210
+        priority 205                     -- 權重值，Master的priority必須比BACKUP的高
+        advert_int 2                     -- 指定MASTER與BACKUP負載之間的檢查間隔，預設1秒
+        authentication {
+                     auth_type PASS      -- 加密
+                     auth_pass redis     -- 密碼
+        }
+
+        track_script {
+            chk_redis
+        }
+
+        virtual_ipaddress {
+             172.16.96.107                -- 給WEB接的Writer IP
+        }
+
+        notify_master /etc/scripts/redis_master.sh
+        notify_backup /etc/scripts/redis_backup.sh
+        notify_fault /etc/scripts/redis_fault.sh
+        notify_stop /etc/scripts/redis_stop.sh
+}
+
+## [ rdb0t-2]  注意：HOST-2不須設定nopreemp
+vi /etc/keepalived/keepalived.conf
+! Configuration File for keepalived
+global_defs {
+    lvs_id LVS_rdb0t
+}
+
+vrrp_script chk_redis {
+        script "/etc/scripts/redis_check.sh"
+        interval 3
+}
+
+vrrp_instance VI_rdb0t-1 {
+        state BACKUP                     -- 設置為BACKUP
+        interface ens3                   -- 監控網卡
+        virtual_router_id 50             -- 這裡設置VRID，這裡非常重要，相同的VRID為一組HA，避免影響線上，測試時請設200~210
+        priority 200                     -- 權重值 
+        advert_int 2                     -- 指定MASTER與BACKUP負載之間的檢查間隔，預設1秒
+        authentication {
+                     auth_type PASS      -- 加密
+                     auth_pass redis     -- 密碼
+        }
+
+        track_script {
+            chk_redis
+        }
+
+        virtual_ipaddress {
+             172.16.96.107                -- 給WEB接的Writer IP
+        }
+
+        notify_master /etc/scripts/redis_master.sh
+        notify_backup /etc/scripts/redis_backup.sh
+        notify_fault /etc/scripts/redis_fault.sh
+        notify_stop /etc/scripts/redis_stop.sh
+}
+
+###########################################################
+##### ◆ 編寫keepalived負責運作的Scripts腳本
+###########################################################
+
+##### 1、撰寫redis_host設定
+[ rdb0t-1 ] & [ rdb0t-2]
+vi /etc/scripts/redis_host.sh
+
+#!/bin/bash
+REDISCLI="/opt/redis/redis-3.2.6"
+LOGFILE="/var/log/keepalived-redis-state.log"
+
+HOST1="172.16.98.107";
+HOST2="172.16.99.107";
+  
+##### 2、撰寫chk_redis腳本
+[ rdb0t-1 ] & [ rdb0t-2]
+vi /etc/scripts/redis_check.sh
+
+#!/bin/bash
+. "/104/_config.sh"
+. "/etc/scripts/redis_host.sh"
+
+NDATE=`date +%Y%m%d`;
+NDATETIME=`date +"%Y-%m-%d %H:%M:%S"`;
+LOGFILE="/data/log/redis/chkRedis.${NDATE}.log"
+ALIVE=`${REDISCLI}/bin/redis-cli -h $HOST1 PING`
+
+#declare -i count=$(ping -c 1 172.16.252.66 | grep -i unreachable | wc -l)
+#if [ "$ALIVE" == "PONG" ] && [ ${count} -eq 0 ]; then
+if [ "$ALIVE" == "PONG" ]; then
+  echo $ALIVE
+  #echo "${NDATETIME} $HOST1 REDIS DB GET PONG" >> $LOGFILE
+  echo "$HOST1 REDIS DB GET PONG"
+  exit 0
+else
+  echo $ALIVE
+  echo "${NDATETIME} $HOST1 REDIS DB NO ANSWER,PING Route unreachable count:${count}"  >> $LOGFILE
+  #echo "$HOST1 REDIS DB NO ANSWER"
+  exit 1
+fi
+
+##### 3、撰寫notify_master 腳本
+[ rdb0t-1 ] & [ rdb0t-2 ]
+vi /etc/scripts/redis_master.sh
+
+#!/bin/bash
+. "/104/_config.sh"
+. "/etc/scripts/redis_host.sh"
+
+REDISCLI="${REDISCLI}/bin/redis-cli"
+pid=$$
+
+echo "`date +'%Y-%m-%d %H:%M:%S'`|$pid|state:[notify_master: Run redis_master.sh]" >> $LOGFILE
+echo "`date +'%Y-%m-%d %H:%M:%S'`|$pid|state:[master] change to master,Run SLAVEOF NO ONE" >> $LOGFILE
+$REDISCLI SLAVEOF NO ONE >> $LOGFILE 2>&1
+echo "`date +'%Y-%m-%d %H:%M:%S'`|$pid|state:[master] change master ok" >> $LOGFILE
+echo "`date +'%Y-%m-%d %H:%M:%S'`|$pid|state:[master] wait slave connect...." >> $LOGFILE
+echo "===================================================================================" >> $LOGFILE
+
+##### 4、撰寫notify_backup 腳本
+[ rdb0t-1 ]
+vi /etc/scripts/redis_backup.sh
+
+#!/bin/bash
+. "/104/_config.sh"
+. "/etc/scripts/redis_host.sh"
+
+REDISCLI="${REDISCLI}/bin/redis-cli"
+pid=$$
+
+echo "`date +'%Y-%m-%d %H:%M:%S'`|$pid|state:[notify_backup: Run redis_backup.sh]" >> $LOGFILE
+echo "`date +'%Y-%m-%d:%H:%M:%S'`|$pid|state:[master] Being slave state..." >> $LOGFILE 2>&1
+echo "`date +'%Y-%m-%d:%H:%M:%S'`|$pid|state:[master] wait 3 sec for data sync from old master" >> $LOGFILE
+sleep 3
+echo "`date +'%Y-%m-%d:%H:%M:%S'`|$pid|state:[master] data rsync from old mater ok..." >> $LOGFILE
+echo "`date +'%Y-%m-%d:%H:%M:%S'`|$pid|state:[slaver] Run 'SLAVEOF ${HOST2} 6379'" >> $LOGFILE
+$REDISCLI SLAVEOF ${HOST2} 6379 >> $LOGFILE  2>&1
+echo "`date +'%Y-%m-%d %H:%M:%S'`|$pid|state:[slaver] slave connect to ${HOST2} ok..." >> $LOGFILE
+echo "===================================================================================" >> $LOGFILE
+
+[ rdb0t-2 ]
+vi /etc/scripts/redis_backup.sh
+
+#!/bin/bash
+. "/104/_config.sh"
+. "/etc/scripts/redis_host.sh"
+
+REDISCLI="${REDISCLI}/bin/redis-cli"
+pid=$$
+
+echo "`date +'%Y-%m-%d %H:%M:%S'`|$pid|state:[notify_backup: Run redis_backup.sh]" >> $LOGFILE
+echo "`date +'%Y-%m-%d:%H:%M:%S'`|$pid|state:[master] Being slave state..." >> $LOGFILE 2>&1
+echo "`date +'%Y-%m-%d:%H:%M:%S'`|$pid|state:[master] wait 3 sec for data sync from old master" >> $LOGFILE
+sleep 3
+echo "`date +'%Y-%m-%d:%H:%M:%S'`|$pid|state:[master] data rsync from old mater ok..." >> $LOGFILE
+echo "`date +'%Y-%m-%d:%H:%M:%S'`|$pid|state:[slaver] Run 'SLAVEOF ${HOST1} 6379'" >> $LOGFILE
+$REDISCLI SLAVEOF ${HOST1} 6379 >> $LOGFILE  2>&1
+echo "`date +'%Y-%m-%d %H:%M:%S'`|$pid|state:[slaver] slave connect to ${HOST1} ok..." >> $LOGFILE
+echo "===================================================================================" >> $LOGFILE
+
+##### 5、撰寫notify_fault腳本
+[ rdb0t-1 ] & [ rdb0t-2 ]
+vi /etc/scripts/redis_fault.sh
+
+#!/bin/bash
+. "/104/_config.sh"
+. "/etc/scripts/redis_host.sh"
+
+REDISCLI="${REDISCLI}/bin/redis-cli"
+pid=$$
+
+echo "`date +'%Y-%m-%d %H:%M:%S'`|$pid|state:[notify_fault: Run redis_fault.sh]" >> $LOGFILE
+echo "===================================================================================" >> $LOGFILE
+
+##### 6、撰寫notify_stop腳本
+[ rdb0t-1 ] & [ rdb0t-2 ]
+vi /etc/scripts/redis_stop.sh
+
+#!/bin/bash
+. "/104/_config.sh"
+. "/etc/scripts/redis_host.sh"
+
+REDISCLI="${REDISCLI}/bin/redis-cli"
+pid=$$
+
+echo "`date +'%Y-%m-%d %H:%M:%S'`|$pid|state:[notify_stop: Run redis_stop.sh]" >> $LOGFILE
+echo "===================================================================================" >> $LOGFILE
+
+##### 7、變更腳本權限
+[rdb0t-1 & rdb0t-2]
+chown root:root /etc/scripts/
+chmod +x /etc/scripts/
+
+###########################################################
+##### ◆ 啟動keepalive
+###########################################################
+
+1、先手動設定rdb0t-1、rdb0t-2同步
+
+# 查看replication資訊
+
+[ rdb0t-1 ]
+/opt/redis/redis-3.2.6/bin/redis-cli info replication
+# Replication
+role:master
+connected_slaves:0
+
+[ rdb0t-2 ]
+/opt/redis/redis-3.2.6/bin/redis-cli info replication
+# Replication
+role:master
+connected_slaves:0
+
+設定rdb0t-2同步rdb0t-1
+[ rdb0t-2 ]
+/opt/redis/redis-3.2.6/bin/redis-cli slaveof 172.16.98.107 6379
+OK
+
+/opt/redis/redis-3.2.6/bin/redis-cli info replication
+# Replication
+role:slave
+master_host:172.16.98.107
+master_port:6379
+master_link_status:up
+master_last_io_seconds_ago:2
+master_sync_in_progress:0
+slave_priority:100
+slave_read_only:1
+connected_slaves:0
+
+[ rdb0t-1 ]
+/opt/redis/redis-3.2.6/bin/redis-cli info replication
+# Replication
+role:master
+connected_slaves:1
+slave0:172.16.99.107,6379,online
+
+2、啟動keepalived daemon
+[ rdb0t-1 ]
+/etc/init.d/keepalived start
+
+[補充說明]
+最初安裝vm完後因想讓rdb0t-1上的redis及keepalived daemon各為master，故先啟動rdb0t上的keepalived。
+
+3、查看writer ip已綁上
+# ip addr list eth0
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP qlen 1000    
+    inet 172.16.98.107/16 brd 172.16.255.255 scope global eth0
+    inet 172.16.96.107/32 scope global eth0
+	
+[ rdb0t-2 ]
+/etc/init.d/keepalived start	
+
+### ◆ keepalived相關指令
+# /etc/init.d/keepalived 
+Usage: /etc/init.d/keepalived {start|stop|reload|restart|condrestart|status}
+
+###########################################################
+#### Redis cluster 故障恢復（Failover）
+###########################################################
+
+1. 故障恢復（Failover）
+當slave發現自己的master變為FAIL狀態時，便嘗試進行Failover，以期成為新的master。由於掛掉的master可能會有多個slave。
+Failover的過程需要經過類Raft協議的過程在整個集群內達到一致， 其過程如下：
+
+slave發現自己的master變為FAIL
+將自己記錄的集群currentEpoch加1，並廣播Failover Request資訊
+其他節點收到該資訊，只有master響應，判斷請求者的合法性，並發送FAILOVER_AUTH_ACK，對每一個epoch只發送一次ack
+嘗試failover的slave收集FAILOVER_AUTH_ACK
+超過半數後變成新Master
+廣播Pong通知其他集群節點
+
+###########################################################
+#### Redis cluster 觀念
+###########################################################
+
+https://read01.com/7OBDd7.html
+
+### 設計思路
+
+1. 性能為第一目標
+-每一次資料處理都是由負責當前slot的Master直接處理的，沒有額外的網絡開銷
+
+2. 提高可用性
+-水平擴展能力 ：由於slot的存在，增加機器節點時只需要將之前由其他節點處理的一部分slot重新分配給新增節點。slot可以看做機器節點和用戶資料之間的一個抽象層。
+-故障恢復：Slave會在需要的時候自動提升為Master
+
+3. 損失一致性
+Master與Slave之間異步複製，即Master先向用戶返回結果後再異步將資料同步給Slave，這就導致Master宕機後一部分已經返回用戶的資料在新Master上不存在
+網絡分區時，由於開始Failover前的超時時間，會有一部分資料繼續寫到馬上要失效的Master上
+
+###
+
+1. 資料分片
+我們已經知道資料會按照key哈希到不同的slot，而每個節點僅負責一部分的slot，客戶端根據slot將請求交給不同的節點。將slots劃分給不同節點的過程稱為資料分片，對應的還可以進行分片的重新分配。這部分功能依賴外部調用命令：
+
+-分片
+對每個集群執行CLUSTER ADDSLOTS slot [slot ...]
+RedisCluster將命令指定的slots作為自己負責的部分
+
+-再分配
+再分配要做的是將一些slots從當前節點(source)遷移到其他節點(target)
+對target執行CLUSTER SETSLOT slot IMPORTING [node-id]，target節點將對應slots記為importing狀態；
+對source執行CLUSTER SETSLOT MIGRATING[node-id]，source節點將對應slots記為migrating狀態，與importing狀態一同在之後的請求重定向中使用
+獲取所有要遷移slot對應的keys，CLUSTER GETKEYSINSLOT slot count
+對source執行MIGRATE host port key db timeout REPLACE [KEYS key [key ...]]
+MIGRATE命令會將所有的指定的key通過RESTORE key ttl serialized-value REPLACE遷移給target
+對所有節點執行CLUSTER SETSLOT slot NODE [node-id]，申明target對這些slots的負責，並退出importing或migrating
+
+2. 請求重定向
+由於每個節點只負責部分slot，以及slot可能從一個節點遷移到另一節點，造成客戶端有可能會向錯誤的節點發起請求。因此需要有一種機制來對其進行發現和修正，這就是請求重定向。有兩種不同的重定向場景：
+
+(A). MOVE
+『我』並不負責『你』要的key，告訴』你『正確的吧。
+返回CLUSTER_REDIR_MOVED錯誤，和正確的節點。
+客戶端向該節點重新發起請求，注意這次依然又發生重定向的可能。
+
+(B). ASK
+『我』負責請求的key，但不巧的這個key當前在migraging狀態，且『我』這裡已經取不到了。告訴『你』importing他的『傢伙』吧，去碰碰運氣。
+返回CLUSTER_REDIR_ASK，和importing該key的節點。
+客戶端向新節點發送ASKING，之後再次發起請求
+新節點對發送過ASKING，且key已經migrate過來的請求進行響應
+
+(C). 區別
+區分這兩種重定向的場景是非常有必要的：
+MOVE，申明的是slot所有權的轉移，收到的客戶端需要更新其key-node映射關係
+ASK，申明的是一種臨時的狀態，所有權還並沒有轉移，客戶端並不更新其映射關係。前面的加的ASKING命令也是申明其理解當前的這種臨時狀態
+
+###
+
+3，狀態檢測及維護
+Cluster中的每個節點都維護一份在自己看來當前整個集群的狀態，主要包括：
+
+當前集群狀態
+集群中各節點所負責的slots資訊，及其migrate狀態
+集群中各節點的master-slave狀態
+集群中各節點的存活狀態及不可達投票
+當集群狀態變化時，如新節點加入、slot遷移、節點宕機、slave提升為新Master，我們希望這些變化儘快的被發現，傳播到整個集群的所有節點並達成一致。節點之間相互的心跳（PING，PONG，MEET）及其攜帶的資料是集群狀態傳播最主要的途徑。
+
+-心跳時機：
+Redis節點會記錄其向每一個節點上一次發出ping和收到pong的時間，心跳發送時機與這兩個值有關。通過下面的方式既能保證及時更新集群狀態，又不至於使心跳數過多：
+
+每次Cron向所有未建立連結的節點發送ping或meet
+每1秒從所有已知節點中隨機選取5個，向其中上次收到pong最久遠的一個發送ping
+每次Cron向收到pong超過timeout/2的節點發送ping
+收到ping或meet，立即回復pong
+
+-心跳資料
+Header，發送者自己的資訊
+	所負責slots的資訊
+	主從資訊
+	ip port資訊
+	狀態資訊
+Gossip，發送者所了解的部分其他節點的資訊
+	ping_sent, pong_received
+	ip, port資訊
+	狀態資訊，比如發送者認為該節點已經不可達，會在狀態資訊中標記其為PFAIL或FAIL
+
+-廣播
+當需要發布一些非常重要需要立即送達的資訊時，上述心跳加Gossip的方式就顯得捉襟見肘了，這時就需要向所有集群內機器的廣播資訊，使用廣播發的場景：
+
+節點的Fail資訊：當發現某一節點不可達時，探測節點會將其標記為PFAIL狀態，並通過心跳傳播出去。當某一節點發現這個節點的PFAIL超過半數時修改其為FAIL並發起廣播。
+Failover Request資訊：slave嘗試發起FailOver時廣播其要求投票的資訊
+新Master資訊：Failover成功的節點向整個集群廣播自己的資訊
+
+###########################################################
+#### Redis cluster 相關說明
+###########################################################
+
+1. 資料結構
+clusterState, 從當前節點的視角來看的集群狀態，每個節點維護一份
+
+myself：指針指向自己的clusterNode
+currentEpoch：當前節點見過的最大epoch，可能在心跳包的處理中更新
+nodes：當前節點感知到的所有節點，為clusterNode指針數組
+slots：slot與clusterNode指針映射關係
+migrating_slots_to, importing_slots_from：記錄slots的遷移資訊
+failover_auth_time, failover_auth_count, failover_auth_sent, failover_auth_rank, failover_auth_epoch：Failover相關
+clusterNode，代表集群中的一個節點
+
+slots：位圖，由當前clusterNode負責的slot為1
+salve, slaveof：主從關係資訊
+ping_sent, pong_received：心跳包收發時間
+clusterLink *link：Node間的聯接
+list *fail_reports：收到的節點不可達投票
+clusterLink，負責處理網絡上的一條連結來的內容
+
+2. Redis啟動過程中與Cluster相關內容
+初始化或從文件中恢復cluster結構
+註冊集群間通信消息的處理函數：clusterProcessPacket
+增加Cluster相關的Cron函數：clusterCron
+
+3. 客戶端請求重定向
+redis處理客戶端命令的函數processCommand增加cluster的重定向內容
+事務或多key中若落在不同slots，直接返回CLUSTER_REDIR_CROSS_SLOT
+如果當前存在於migration狀態，且有key不再當前節點，返回CLUSTER_REDIR_ASK
+如果當前是import狀態且客戶端在ASKING狀態，則返回可以處理，或者CLUSTER_REDIR_UNSTABLE
+如果不是myself，則返回CLUSTER_REDIR_MOVED
+
+4. 定時任務 clusterCron
+對handshake節點建立Link，發送Ping或Meet
+選擇合適的clusterNode發送Ping
+如果是從查看是否需要做Failover
+統計並決定是否進行slave的遷移，來平衡不同master的slave數
+判斷所有pfail報告數是否過半數
+
+5. 集群消息處理 clusterProcessPacket
+根據收到的消息更新自己的epoch和slave的offset資訊
+處理MEET消息，使加入集群
+從goosip中發現未知節點，發起handshake
+對PING，MEET回復PONG
+根據收到的心跳資訊更新自己clusterState中的master-slave，slots資訊
+對FAILOVER_AUTH_REQUEST消息，檢查並投票
+處理FAIL，FAILOVER_AUTH_ACK，UPDATE資訊
+
+###########################################################
+#### 
+###########################################################
