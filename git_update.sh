@@ -4,6 +4,12 @@ echo "##### Centos 7 升級為 git2 #####"
 sleep 1
 
 #####
+GIT_VER_N=$(git --version)
+echo " "
+echo "當前的 git version --> ( $GIT_VER_N ) !"
+echo " "
+
+#####
 read -p "Continue ? [請再次確認是否要繼續執行] ( 1 = 繼續 or 0 = 離開 ) : " GO_CONTINUE
 # Continue
 sleep 1
@@ -36,9 +42,9 @@ sudo yum install -y git2u
 sleep 2
 
 #####
-GIT_VER=$(git --version)
+GIT_VER_U=$(git --version)
 echo " "
-echo "git version --- ( $GIT_VER ) !"
+echo "目前更新完後 git version --> ( $GIT_VER_U ) !"
 echo " "
 echo "git 升級更新完成 !"
 echo " "
