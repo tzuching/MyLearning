@@ -31,7 +31,7 @@ echo " 3. 安裝 IUS repository (for RHEL/CentOS 7)："
 sudo yum install -y https://centos7.iuscommunity.org/ius-release.rpm
 sleep 2
 
-echo " 4. 安裝 git2u：
+echo " 4. 安裝 git2u："
 sudo yum install -y git2u
 sleep 2
 
