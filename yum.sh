@@ -22,8 +22,6 @@ sleep 1
 sudo yum install -y https://centos7.iuscommunity.org/ius-release.rpm
 sleep 2
 
-git clone https://github.com/tzuching/MyLearning.git
-sleep 1
 sh MyLearning/git_update.sh
 sleep 1
 rm -rf MyLearning/
