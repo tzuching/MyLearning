@@ -10,19 +10,19 @@ echo "當前的 git version --> ( $GIT_VER_N ) !"
 echo " "
 
 #####
-read -p "Continue ? [請再次確認是否要繼續執行] ( 1 = 繼續 or 0 = 離開 ) : " GO_CONTINUE
+#read -p "Continue ? [請再次確認是否要繼續執行] ( 1 = 繼續 or 0 = 離開 ) : " GO_CONTINUE
 # Continue
-sleep 1
-if [ $GO_CONTINUE -eq 0 ]; then
-    echo " "
-    echo "Bye! Bye!"
-    echo " "
-    exit
-else
-    echo " "
-    echo "Go! Continue!"
-    echo " "
-fi
+#sleep 1
+#if [ $GO_CONTINUE -eq 0 ]; then
+#    echo " "
+#    echo "Bye! Bye!"
+#    echo " "
+#    exit
+#else
+#    echo " "
+#    echo "Go! Continue!"
+#    echo " "
+#fi
 
 #####
 echo " 1. 若本來已有安裝 git，須先將之移除："
