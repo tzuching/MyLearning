@@ -35,19 +35,14 @@ sleep 1
 
 yum -y install yum-utils device-mapper-persistent-data lvm2
 sleep 1
-
 yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 sleep 1
-
 yum -y install docker-ce
 sleep 1
-
 systemctl start docker
 sleep 1
-
 systemctl enable docker
 sleep 1
-
 systemctl status docker
 sleep 1
 
