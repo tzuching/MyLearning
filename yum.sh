@@ -47,7 +47,20 @@ sleep 1
 docker -v
 sleep 2
 
+####
+touch /root/fish.sh
+sleep 1
+cd /etc/yum.repos.d/
+wget https://download.opensuse.org/repositories/shells:fish:release:2/CentOS_7/shells:fish:release:2.repo
+sleep 1
+yum install fish -y
+sleep 1
+sh -x /root/fish.sh
+sleep 1
+rm -rf /root/fish.sh
+sleep 2
+
 #####
 echo " "
-echo "升級更新完成 !"
+echo "升級及安裝更新完成 !"
 echo " "
