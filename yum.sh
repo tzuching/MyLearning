@@ -11,7 +11,7 @@ yum install -y yum-utils epel-release curl wget tar bzip2 unzip nmap-ncat vim-en
 sleep 1
 yum install -y passwd sudo hostname net-tools rsync man libpng-devel libjpeg-devel
 sleep 1
-yum install -y gcc gcc-c++ git make automake cmake patch logrotate python-devel
+yum install -y gcc gcc-c++ make automake cmake patch logrotate python-devel
 sleep 1
 yum install -y openssl-devel dstat tree telnet sysstat smem
 sleep 1
@@ -31,7 +31,7 @@ sleep 1
 yum update -y
 sleep 1
 
-yum -y install yum-utils device-mapper-persistent-data lvm2
+yum -y install device-mapper-persistent-data lvm2
 sleep 1
 yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 sleep 1
